@@ -29,7 +29,7 @@ pub mod resources {
             let file_path = self.root_path.join(path);
             let mut file = fs::File::open(file_path).ok()?;
             let mut string_data = String::new();
-            file.read_to_string(&mut string_data);
+            file.read_to_string(&mut string_data).ok()?;
             Some(string_data)
         }
 
@@ -37,7 +37,7 @@ pub mod resources {
             let file_path = self.root_path.join(path);
             let mut file = fs::File::open(file_path).ok()?;
             let mut data = Vec::new();
-            file.read_to_end(&mut data);
+            file.read_to_end(&mut data).ok()?;
             Some(data)
         }
     }

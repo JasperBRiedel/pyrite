@@ -131,9 +131,14 @@ fn new_command(project_name: String, project_path: String) {
 
     fs::create_dir_all(tilesets_dir).expect("failed to create tilesets directory");
     fs::create_dir_all(audio_dir).expect("failed to create audio directory");
-    fs::create_dir_all(source_dir).expect("failed to create source directory");
+    fs::create_dir_all(source_dir.clone()).expect("failed to create source directory");
     fs::create_dir_all(resources_dir).expect("failed to create resources directory");
     fs::create_dir_all(release_dir).expect("failed to create release directory");
+
+    let template = include_str!("entry_template.py").replace("APPLICATION_NAME", &project_name);
+    let entry_file_path = source_dir.join("entry.py");
+    let mut entry_file = fs::File::create(entry_file_path).expect("failed to create entry.py");
+    write!(entry_file, "{}", template).expect("failed to write entry.py");
 
     println!("Project created at \"{}\"", project_dir.display());
 }
