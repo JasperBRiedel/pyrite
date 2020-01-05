@@ -1245,6 +1245,8 @@ dependencies = [
  "glutin 0.21.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "image 0.22.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustpython 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustpython-compiler 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustpython-vm 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

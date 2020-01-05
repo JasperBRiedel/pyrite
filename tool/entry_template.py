@@ -29,16 +29,15 @@ config = {
             # Number of tiles along the horizontal axis
             "horizontal_tiles": 3,
             # Number of tiles along the vertical axis
-            "veritical_tiles": 1,
+            "vertical_tiles": 1,
             # Names of each tile in order from left to right, top to bottom.
             "tile_names": [
                 "grass",
                 "dirt",
-                "stone",
+                "stone"
             ]
         }
     }
-
 }
 
 # All application logic should exist within the engine loop below
