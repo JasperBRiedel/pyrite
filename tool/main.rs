@@ -1,4 +1,5 @@
 use std::env;
+use std::fs;
 use std::io;
 use std::io::Write;
 
@@ -102,11 +103,67 @@ fn join_strings(strings: &Vec<String>, seperator: &str) -> String {
 }
 
 fn new_command(project_name: String, project_path: String) {
-    println!("create new project {} - {}", project_name, project_path);
+    if project_name.len() <= 0 {
+        println!("Please provide a project name, type 'help' for a list of commands.");
+        return;
+    }
+
+    let tool_exe = env::current_exe().expect("failed to locate pyrite executable");
+
+    let tool_dir = tool_exe
+        .parent()
+        .expect("failed to extract pyrite directory");
+
+    let project_dir = tool_dir.join("projects").join(project_path);
+
+    if project_dir.exists() {
+        println!("A project with that name already exists, type 'help' for a list of commands");
+        return;
+    }
+
+    println!("Creating project \"{}\"", project_name);
+
+    let tilesets_dir = project_dir.join("tilesets");
+    let audio_dir = project_dir.join("audio");
+    let source_dir = project_dir.join("source");
+    let resources_dir = project_dir.join("resources");
+    let release_dir = project_dir.join("release");
+
+    fs::create_dir_all(tilesets_dir).expect("failed to create tilesets directory");
+    fs::create_dir_all(audio_dir).expect("failed to create audio directory");
+    fs::create_dir_all(source_dir).expect("failed to create source directory");
+    fs::create_dir_all(resources_dir).expect("failed to create resources directory");
+    fs::create_dir_all(release_dir).expect("failed to create release directory");
+
+    println!("Project created at \"{}\"", project_dir.display());
 }
 
 fn run_command(project_name: String, project_path: String) {
-    println!("run project {} - {}", project_name, project_path);
+    if project_name.len() <= 0 {
+        println!("Please provide a project name, type 'help' for a list of commands.");
+        return;
+    }
+
+    let tool_exe = env::current_exe().expect("failed to locate pyrite executable");
+
+    let tool_dir = tool_exe
+        .parent()
+        .expect("failed to extract pyrite directory");
+
+    let project_dir = tool_dir.join("projects").join(project_path.clone());
+
+    if !project_dir.exists() {
+        println!(
+            "Failed to find project with name \"{}\", type 'help' for a list of commands",
+            project_name
+        );
+        return;
+    }
+
+    println!("Running {} - \"{}\"", project_name, project_dir.display());
+
+    let resources = pyrite::resources::FilesystemProvider::new(project_dir);
+    pyrite::start(resources);
 }
 
 fn build_command(project_name: String, project_path: String) {

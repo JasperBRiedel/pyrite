@@ -52,6 +52,9 @@ while pyrite.run(configuration):
 |-tiles
 | \-basic_tiles.png
 |
+|-resources
+| \*.*
+|
 |-release
 | |-default_0.1.0_win.exe
 | \-default_0.1.0_linux
