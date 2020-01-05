@@ -1,0 +1,27 @@
+[package]
+name = "pyrite"
+version = "0.2.0"
+authors = ["JasperBRiedel <jasperandbuddy@gmail.com>"]
+publish = false
+edition = "2018"
+default-run = "tool"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "pyrite"
+path = "lib/lib.rs"
+
+[[bin]]
+name = "tool"
+path = "tool/main.rs"
+
+[[bin]]
+name = "player"
+path = "player/main.rs"
+
+[dependencies]
+rustpython = "0.1.1"
+gl = "0.14.0"
+image = "0.22.3"
+glutin = "0.21.2"
