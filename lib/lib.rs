@@ -1,23 +1,14 @@
 use py::pyobject::ItemProtocol;
+use py::pyobject::PyObjectRef;
+use py::pyobject::PyResult;
+use py::pyobject::PyValue;
 use rustpython_compiler as py_c;
 use rustpython_vm as py;
 
 pub fn start<R: resources::Provider>(resource_provider: R) {
-    let python_vm_config = py::PySettings {
-        debug: false,
-        inspect: false,
-        optimize: 0,
-        no_user_site: true,
-        no_site: true,
-        ignore_environment: true,
-        quiet: true,
-        verbose: 1,
-        dont_write_bytecode: true,
-        path_list: Vec::new(),
-        argv: Vec::new(),
-    };
+    let python_vm = py::VirtualMachine::new(py::PySettings::default());
 
-    let python_vm = py::VirtualMachine::new(python_vm_config);
+    load_engine_module(&python_vm);
 
     let entry_path = "source/entry.py";
     let entry_source = resource_provider
@@ -25,6 +16,10 @@ pub fn start<R: resources::Provider>(resource_provider: R) {
         .expect("failed to load entry.py");
 
     let scope = python_vm.new_scope_with_builtins();
+
+    if let Err(e) = dbg!(python_vm.import("pyrite", &[], 0)) {
+        py::print_exception(&python_vm, &e);
+    }
 
     let code_obj = python_vm
         .compile(
@@ -34,21 +29,30 @@ pub fn start<R: resources::Provider>(resource_provider: R) {
         )
         .expect("failed to compile entry.py");
 
-    scope
-        .globals
-        .set_item(
-            "__file__",
-            python_vm.new_str(entry_path.to_string()),
-            &python_vm,
-        )
-        .expect("failed to set __file__ for entry");
-
     let result = python_vm.run_code_obj(code_obj, scope);
 
     match result {
         Ok(_) => (),
         Err(e) => py::print_exception(&python_vm, &e),
     }
+}
+
+fn load_engine_module(vm: &py::VirtualMachine) {
+    vm.stdlib_inits
+        .try_borrow_mut()
+        .expect("failed to load engine module")
+        .insert("pyrite".to_string(), Box::new(engine_module_loader));
+}
+
+fn engine_module_loader(vm: &py::VirtualMachine) -> PyObjectRef {
+    py::py_module!(vm, "pyrite", {
+        "foo" => vm.context().new_rustfunc(foo),
+    })
+}
+
+fn foo(vm: &py::VirtualMachine, args: py::function::PyFuncArgs) -> PyResult {
+    println!("Foo called by python!");
+    Ok(vm.get_none())
 }
 
 pub mod resources {

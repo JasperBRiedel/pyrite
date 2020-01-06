@@ -1,5 +1,9 @@
 # Pyrite specification
 
+!! try injecting module into the sys module, and making sure it's set-up correctly.
+
+!!! Need to move to pyo3, rustpython is not in a state that's usable for this project.
+
 ## Renderer
 
 * Use opengl es 2
