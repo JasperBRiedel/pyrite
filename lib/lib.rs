@@ -1,58 +1,150 @@
-use py::pyobject::ItemProtocol;
-use py::pyobject::PyObjectRef;
-use py::pyobject::PyResult;
-use py::pyobject::PyValue;
-use rustpython_compiler as py_c;
-use rustpython_vm as py;
+use pyo3::{
+    prelude::*,
+    types::{PyDict, PyString},
+};
 
 pub fn start<R: resources::Provider>(resource_provider: R) {
-    let python_vm = py::VirtualMachine::new(py::PySettings::default());
+    let py_lock = Python::acquire_gil();
+    let py = py_lock.python();
 
-    load_engine_module(&python_vm);
+    let engine_module = PyModule::new(py, "pyrite").expect("failed to initialise engine module");
+    engine_binding::load_bindings(engine_module);
+    inject_python_module(py, engine_module);
 
     let entry_path = "source/entry.py";
     let entry_source = resource_provider
         .read_to_string(entry_path)
         .expect("failed to load entry.py");
 
-    let scope = python_vm.new_scope_with_builtins();
-
-    if let Err(e) = dbg!(python_vm.import("pyrite", &[], 0)) {
-        py::print_exception(&python_vm, &e);
-    }
-
-    let code_obj = python_vm
-        .compile(
-            &entry_source,
-            py_c::compile::Mode::Exec,
-            entry_path.to_string(),
-        )
-        .expect("failed to compile entry.py");
-
-    let result = python_vm.run_code_obj(code_obj, scope);
-
-    match result {
-        Ok(_) => (),
-        Err(e) => py::print_exception(&python_vm, &e),
+    match PyModule::from_code(py, &entry_source, entry_path, "entry") {
+        Ok(_) => (),           // game exited gracefully, clean up and exit engine.
+        Err(e) => e.print(py), // game syntax or logic error occurred, write crash log, clean up and exit engine.
     }
 }
 
-fn load_engine_module(vm: &py::VirtualMachine) {
-    vm.stdlib_inits
-        .try_borrow_mut()
-        .expect("failed to load engine module")
-        .insert("pyrite".to_string(), Box::new(engine_module_loader));
+fn inject_python_module(py: Python, module: &PyModule) {
+    py.import("sys")
+        .expect("failed to import python sys module")
+        .dict()
+        .get_item("modules")
+        .expect("failed to get python modules dictionary")
+        .downcast_mut::<PyDict>()
+        .expect("failed to turn sys.modules into a PyDict")
+        .set_item(module.name().expect("module missing name"), module)
+        .expect("failed to inject module");
 }
 
-fn engine_module_loader(vm: &py::VirtualMachine) -> PyObjectRef {
-    py::py_module!(vm, "pyrite", {
-        "foo" => vm.context().new_rustfunc(foo),
-    })
+mod engine {
+    use std::collections::HashMap;
+
+    pub enum EngineMode {
+        Client,
+        Server,
+    }
+
+    pub enum BlendMode {
+        Halves,
+        Alternate,
+    }
+
+    pub struct Config {
+        application_name: String,
+        application_version: String,
+        engine_mode: EngineMode,
+        // base_grid_size: u32, // should probably calculate this from the smallest tile size
+        window_width: u32,
+        window_height: u32,
+        blend_mode: BlendMode,
+        tiles: HashMap<String, Tileset>, // the key should be the set name and not file name
+    }
+
+    pub struct Tileset {
+        filename: String,
+        horizontal_tiles: u32,
+        vertical_tiles: u32,
+        tile_names: Vec<String>,
+    }
+
+    pub struct Engine {
+        config: Option<Config>,
+    }
+
+    impl Engine {
+        pub fn run(&mut self, config: Config) -> bool {
+            println!("Running engine!");
+            false
+        }
+    }
 }
 
-fn foo(vm: &py::VirtualMachine, args: py::function::PyFuncArgs) -> PyResult {
-    println!("Foo called by python!");
-    Ok(vm.get_none())
+mod engine_binding {
+    use super::*;
+    use engine::Engine;
+    use pyo3::wrap_pyfunction;
+
+    static mut ENGINE_INSTANCE: Option<Engine> = None;
+
+    pub fn load_engine(e: Engine) {
+        unsafe {
+            ENGINE_INSTANCE = Some(e);
+        }
+    }
+
+    macro_rules! bind {
+        ($module:ident, $func:ident) => {
+            $module
+                .add_wrapped(wrap_pyfunction!($func))
+                .expect(stringify!(failed to load binding for $func));
+        }
+    }
+
+    macro_rules! engine {
+        () => {
+            unsafe {
+                match &mut ENGINE_INSTANCE {
+                    Some(e) => e,
+                    None => panic!(
+                        "An engine function was invoked without an available engine instance"
+                    ),
+                }
+            }
+        };
+    }
+
+    pub fn load_bindings(m: &PyModule) {
+        // write a macro to handle the boiler plate of each binding
+        // bind!(m, foo)
+        //
+        // instead of
+        // m.add_wrapped(wrap_pyfunction!(foo)).expect("error loading foo");
+        // m.add_wrapped(wrap_pyfunction!(run))
+        //     .expect("error loading run");
+
+        bind!(m, run);
+    }
+
+    /// run(configuration)
+    /// --
+    /// run the engine life cycle
+    #[pyfunction]
+    fn run(config: PyObject) -> bool {
+        let py = unsafe { Python::assume_gil_acquired() };
+
+        let config: std::collections::HashMap<String, PyObject> = config
+            .extract(py)
+            .expect("Type error when reading the configuration structure");
+
+        let applicaiton_name = config
+            .get("application_name")
+            .and_then(|py_value| py_value.extract::<String>(py).ok())
+            .unwrap_or(String::from("default"));
+
+        dbg!(applicaiton_name);
+
+        let config = unimplemented!();
+
+        engine!().run(config)
+    }
 }
 
 pub mod resources {

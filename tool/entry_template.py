@@ -24,8 +24,10 @@ config = {
 
     # Tile set descriptors
     "tiles": {
-        # file name of the tile set inside the tilesets directory
-        "basic_tiles.png": {
+        # Name of the tile set
+        "basic_tiles": {
+            # file name of the tile set inside the tilesets directory
+            "filename": "basic_tiles.png",
             # Number of tiles along the horizontal axis
             "horizontal_tiles": 3,
             # Number of tiles along the vertical axis

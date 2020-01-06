@@ -21,9 +21,7 @@ name = "player"
 path = "player/main.rs"
 
 [dependencies]
-rustpython = "0.1.1"
-rustpython-vm = "0.1.1"
-rustpython-compiler = "0.1.1"
+pyo3 = "0.8.5"
 gl = "0.14.0"
 image = "0.22.3"
 glutin = "0.21.2"
