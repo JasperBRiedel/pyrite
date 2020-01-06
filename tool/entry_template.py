@@ -1,3 +1,5 @@
+import pyrite
+
 config = {
     # Application name
     "application_name": "APPLICATION_NAME",

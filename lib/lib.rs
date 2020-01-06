@@ -3,18 +3,22 @@ use pyo3::{
     types::{PyDict, PyString},
 };
 
-pub fn start<R: resources::Provider>(resource_provider: R) {
+pub fn start<R: resources::Provider + 'static>(resource_provider: R) {
     let py_lock = Python::acquire_gil();
     let py = py_lock.python();
-
-    let engine_module = PyModule::new(py, "pyrite").expect("failed to initialise engine module");
-    engine_binding::load_bindings(engine_module);
-    inject_python_module(py, engine_module);
 
     let entry_path = "source/entry.py";
     let entry_source = resource_provider
         .read_to_string(entry_path)
         .expect("failed to load entry.py");
+
+    let resources = Box::new(resource_provider);
+    let engine = engine::Engine::new(resources);
+    engine_binding::load_engine(engine);
+
+    let engine_module = PyModule::new(py, "pyrite").expect("failed to initialise engine module");
+    engine_binding::load_bindings(engine_module);
+    inject_python_module(py, engine_module);
 
     match PyModule::from_code(py, &entry_source, entry_path, "entry") {
         Ok(_) => (),           // game exited gracefully, clean up and exit engine.
@@ -35,42 +39,80 @@ fn inject_python_module(py: Python, module: &PyModule) {
 }
 
 mod engine {
+    use crate::resources;
     use std::collections::HashMap;
 
+    #[derive(Debug)]
     pub enum EngineMode {
         Client,
         Server,
     }
 
+    impl EngineMode {
+        pub fn from_string(s: &str) -> Self {
+            match s.to_lowercase().as_str() {
+                "client" => Self::Client,
+                "server" => Self::Server,
+                _ => Self::Client,
+            }
+        }
+    }
+
+    #[derive(Debug)]
     pub enum BlendMode {
         Halves,
         Alternate,
     }
 
-    pub struct Config {
-        application_name: String,
-        application_version: String,
-        engine_mode: EngineMode,
-        // base_grid_size: u32, // should probably calculate this from the smallest tile size
-        window_width: u32,
-        window_height: u32,
-        blend_mode: BlendMode,
-        tiles: HashMap<String, Tileset>, // the key should be the set name and not file name
+    impl BlendMode {
+        pub fn from_string(s: &str) -> Self {
+            match s.to_lowercase().as_str() {
+                "halves" => Self::Halves,
+                "alternate" => Self::Alternate,
+                _ => Self::Halves,
+            }
+        }
     }
 
+    #[derive(Debug)]
+    pub struct Config {
+        pub application_name: String,
+        pub application_version: String,
+        pub engine_mode: EngineMode,
+        // base_grid_size: u32, // should probably calculate this from the smallest tile size
+        pub window_width: u32,
+        pub window_height: u32,
+        pub blend_mode: BlendMode,
+        pub tiles: HashMap<String, Tileset>, // the key should be the set name and not file name
+    }
+
+    #[derive(Debug)]
     pub struct Tileset {
-        filename: String,
-        horizontal_tiles: u32,
-        vertical_tiles: u32,
-        tile_names: Vec<String>,
+        pub filename: String,
+        pub horizontal_tiles: u32,
+        pub vertical_tiles: u32,
+        pub tile_names: Vec<String>,
     }
 
     pub struct Engine {
         config: Option<Config>,
+        resources: Box<dyn resources::Provider>,
     }
 
     impl Engine {
+        pub fn new(resources: Box<dyn resources::Provider>) -> Self {
+            Self {
+                config: None,
+                resources,
+            }
+        }
+
         pub fn run(&mut self, config: Config) -> bool {
+            if self.config.is_none() {
+                println!("Loading configuration...");
+                self.config = Some(dbg!(config));
+            }
+
             println!("Running engine!");
             false
         }
@@ -79,8 +121,9 @@ mod engine {
 
 mod engine_binding {
     use super::*;
-    use engine::Engine;
+    use engine::*;
     use pyo3::wrap_pyfunction;
+    use std::collections::HashMap;
 
     static mut ENGINE_INSTANCE: Option<Engine> = None;
 
@@ -112,15 +155,15 @@ mod engine_binding {
     }
 
     pub fn load_bindings(m: &PyModule) {
-        // write a macro to handle the boiler plate of each binding
-        // bind!(m, foo)
-        //
-        // instead of
-        // m.add_wrapped(wrap_pyfunction!(foo)).expect("error loading foo");
-        // m.add_wrapped(wrap_pyfunction!(run))
-        //     .expect("error loading run");
-
         bind!(m, run);
+    }
+
+    macro_rules! extract_or {
+        ($py:ident, $map:ident, $key:literal, $type:ty, $default:expr) => {
+            $map.get($key)
+                .and_then(|py_object| py_object.extract::<$type>($py).ok())
+                .unwrap_or($default)
+        };
     }
 
     /// run(configuration)
@@ -128,22 +171,86 @@ mod engine_binding {
     /// run the engine life cycle
     #[pyfunction]
     fn run(config: PyObject) -> bool {
+        let config = pyobject_into_configuration(config);
+        engine!().run(config)
+    }
+
+    fn pyobject_into_configuration(config: PyObject) -> Config {
         let py = unsafe { Python::assume_gil_acquired() };
 
-        let config: std::collections::HashMap<String, PyObject> = config
+        let config: HashMap<String, PyObject> = config
             .extract(py)
             .expect("Type error when reading the configuration structure");
 
-        let applicaiton_name = config
-            .get("application_name")
-            .and_then(|py_value| py_value.extract::<String>(py).ok())
-            .unwrap_or(String::from("default"));
+        let application_name = extract_or!(
+            py,
+            config,
+            "application_name",
+            String,
+            "default".to_string()
+        );
 
-        dbg!(applicaiton_name);
+        let application_version = extract_or!(
+            py,
+            config,
+            "application_version",
+            String,
+            "0.0.0".to_string()
+        );
 
-        let config = unimplemented!();
+        let engine_mode_string =
+            extract_or!(py, config, "engine_mode", String, "client".to_string());
 
-        engine!().run(config)
+        let engine_mode = EngineMode::from_string(&engine_mode_string);
+
+        let window_width = extract_or!(py, config, "window_width", u32, 800);
+        let window_height = extract_or!(py, config, "window_height", u32, 600);
+
+        let blend_mode_string = extract_or!(py, config, "blend_mode", String, "halves".to_string());
+
+        let blend_mode = BlendMode::from_string(&blend_mode_string);
+
+        let tiles = pyobject_into_tiles(
+            extract_or!(py, config, "tiles", HashMap<String, PyObject>, HashMap::new()),
+        );
+
+        Config {
+            application_name,
+            application_version,
+            engine_mode,
+            window_width,
+            window_height,
+            blend_mode,
+            tiles,
+        }
+    }
+
+    fn pyobject_into_tiles(py_tiles: HashMap<String, PyObject>) -> HashMap<String, Tileset> {
+        let py = unsafe { Python::assume_gil_acquired() };
+
+        let mut tiles = HashMap::with_capacity(py_tiles.len());
+
+        for (name, py_tileset) in py_tiles {
+            let py_tileset = py_tileset
+                .extract::<HashMap<String, PyObject>>(py)
+                .expect("Type error reading tile set configuration");
+
+            let filename = extract_or!(py, py_tileset, "filename", String, String::new());
+            let horizontal_tiles = extract_or!(py, py_tileset, "horizontal_tiles", u32, 1);
+            let vertical_tiles = extract_or!(py, py_tileset, "vertical_tiles", u32, 1);
+            let tile_names = extract_or!(py, py_tileset, "tile_names", Vec<String>, Vec::new());
+
+            let tileset = Tileset {
+                filename,
+                horizontal_tiles,
+                vertical_tiles,
+                tile_names,
+            };
+
+            tiles.insert(name, tileset);
+        }
+
+        tiles
     }
 }
 
