@@ -194,6 +194,11 @@ mod engine {
             timestep.step(interval)
         }
 
+        // API Function
+        pub fn exit(&mut self) {
+            self.state = EngineState::Exiting;
+        }
+
         fn initialise(&mut self) {
             // initialise renderer
 
@@ -245,6 +250,7 @@ mod engine_binding {
         bind!(m, run);
         bind!(m, load);
         bind!(m, timestep);
+        bind!(m, exit);
     }
 
     macro_rules! extract_or {
@@ -278,6 +284,14 @@ mod engine_binding {
     #[pyfunction]
     fn timestep(label: String, interval: f64) -> bool {
         engine!().timestep(label, interval)
+    }
+
+    /// exit()
+    /// --
+    /// Initiate engine shut down
+    #[pyfunction]
+    fn exit() {
+        engine!().exit();
     }
 
     fn pyobject_into_configuration(config: PyObject) -> Config {
