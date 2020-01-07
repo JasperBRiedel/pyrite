@@ -41,6 +41,7 @@ fn inject_python_module(py: Python, module: &PyModule) {
 mod engine {
     use crate::resources;
     use std::collections::HashMap;
+    use std::time::{Duration, Instant};
 
     #[derive(Debug)]
     pub enum EngineMode {
@@ -94,9 +95,45 @@ mod engine {
         pub tile_names: Vec<String>,
     }
 
+    enum EngineState {
+        Starting, // Initial engine state before any methods are called
+        Loading,  // First iteration of the main loop will have this state
+        Running,  // Running state set once the engine is initialised and run function invoked
+        Exiting,  // Exiting set when the game requests that the engine exit
+    }
+
+    struct Timestep {
+        accumulator: Duration,
+        last_step: Instant,
+    }
+
+    impl Timestep {
+        fn new() -> Self {
+            Timestep {
+                accumulator: Duration::from_secs(0),
+                last_step: Instant::now(),
+            }
+        }
+
+        fn step(&mut self, interval: f64) -> bool {
+            let delta_time = 1. / interval;
+            self.accumulator += self.last_step.elapsed();
+            self.last_step = Instant::now();
+
+            if self.accumulator.as_secs_f64() >= delta_time {
+                self.accumulator -= Duration::from_secs_f64(delta_time);
+                return true;
+            }
+
+            return false;
+        }
+    }
+
     pub struct Engine {
         config: Option<Config>,
         resources: Box<dyn resources::Provider>,
+        state: EngineState,
+        timesteps: HashMap<String, Timestep>,
     }
 
     impl Engine {
@@ -104,18 +141,68 @@ mod engine {
             Self {
                 config: None,
                 resources,
+                state: EngineState::Starting,
+                timesteps: HashMap::new(),
             }
         }
 
+        // API Function
         pub fn run(&mut self, config: Config) -> bool {
-            if self.config.is_none() {
-                println!("Loading configuration...");
-                self.config = Some(dbg!(config));
+            match self.state {
+                EngineState::Loading => self.state = EngineState::Running,
+                _ => (),
             }
 
-            println!("Running engine!");
-            false
+            if self.config.is_none() {
+                self.config = Some(dbg!(config));
+
+                self.initialise();
+
+                match self.state {
+                    EngineState::Starting => self.state = EngineState::Loading,
+                    _ => (),
+                }
+            }
+
+            match self.state {
+                EngineState::Running | EngineState::Loading => true,
+                EngineState::Exiting => {
+                    self.clean();
+                    false
+                }
+                _ => false,
+            }
         }
+
+        // API Function
+        pub fn load(&mut self) -> bool {
+            match self.state {
+                EngineState::Loading => {
+                    self.state = EngineState::Running;
+                    true
+                }
+                _ => false,
+            }
+        }
+
+        // API Function
+        pub fn timestep(&mut self, label: String, interval: f64) -> bool {
+            let timestep = self.timesteps.entry(label).or_insert(Timestep::new());
+
+            // poll input system
+
+            timestep.step(interval)
+        }
+
+        fn initialise(&mut self) {
+            // initialise renderer
+
+            // load tile sets into renderer
+
+            // hook up input system
+        }
+
+        fn clean(&mut self) {}
     }
 }
 
@@ -156,6 +243,8 @@ mod engine_binding {
 
     pub fn load_bindings(m: &PyModule) {
         bind!(m, run);
+        bind!(m, load);
+        bind!(m, timestep);
     }
 
     macro_rules! extract_or {
@@ -173,6 +262,22 @@ mod engine_binding {
     fn run(config: PyObject) -> bool {
         let config = pyobject_into_configuration(config);
         engine!().run(config)
+    }
+
+    /// load()
+    /// --
+    /// returns true when the game should load
+    #[pyfunction]
+    fn load() -> bool {
+        engine!().load()
+    }
+
+    /// timestep(interval)
+    /// --
+    /// Return true interval amount of seconds
+    #[pyfunction]
+    fn timestep(label: String, interval: f64) -> bool {
+        engine!().timestep(label, interval)
     }
 
     fn pyobject_into_configuration(config: PyObject) -> Config {
