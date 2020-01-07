@@ -38,7 +38,78 @@ fn inject_python_module(py: Python, module: &PyModule) {
         .expect("failed to inject module");
 }
 
+mod graphics {
+    use crate::engine;
+    use crate::platform;
+    use glutin::{
+        dpi::LogicalSize, event_loop::EventLoop, window::WindowBuilder, ContextBuilder,
+        PossiblyCurrent, WindowedContext,
+    };
+
+    pub struct Context {
+        windowed_context: WindowedContext<PossiblyCurrent>,
+    }
+
+    impl Context {
+        pub fn new(config: &engine::Config, platform: &platform::Platform) -> Self {
+            let window_size: LogicalSize = (config.window_width, config.window_height).into();
+
+            let window_builder = WindowBuilder::new()
+                .with_title(&config.application_name)
+                // .with_resizable() // need to add this to the engine configuration
+                .with_inner_size(window_size);
+
+            let windowed_context = unsafe {
+                ContextBuilder::new()
+                    .build_windowed(window_builder, &platform.events)
+                    .expect("graphics context initialisation failed")
+                    .make_current()
+                    .expect("failed to access graphics context")
+            };
+
+            Context { windowed_context }
+        }
+
+        // This is probably temporary, buffers will be swapped after draw calls.
+        pub fn swap_buffers(&mut self) {
+            self.windowed_context.swap_buffers().unwrap();
+        }
+    }
+}
+
+mod platform {
+    use glutin::event::{Event, WindowEvent};
+    use glutin::event_loop::{ControlFlow, EventLoop};
+    use glutin::platform::desktop::EventLoopExtDesktop;
+
+    pub struct Platform {
+        pub events: EventLoop<()>,
+    }
+
+    impl Platform {
+        pub fn new() -> Self {
+            let events = EventLoop::new();
+
+            Self { events }
+        }
+
+        pub fn service(&mut self) {
+            self.events.run_return(move |e, _, control_flow| {
+                *control_flow = ControlFlow::Exit;
+                match e {
+                    Event::WindowEvent { event, .. } => {
+                        println!("{:?}", event);
+                    }
+                    _ => (),
+                }
+            });
+        }
+    }
+}
+
 mod engine {
+    use crate::graphics;
+    use crate::platform::Platform;
     use crate::resources;
     use std::collections::HashMap;
     use std::time::{Duration, Instant};
@@ -134,6 +205,8 @@ mod engine {
         resources: Box<dyn resources::Provider>,
         state: EngineState,
         timesteps: HashMap<String, Timestep>,
+        platform: Platform,
+        graphics_context: Option<graphics::Context>,
     }
 
     impl Engine {
@@ -143,6 +216,8 @@ mod engine {
                 resources,
                 state: EngineState::Starting,
                 timesteps: HashMap::new(),
+                graphics_context: None,
+                platform: Platform::new(),
             }
         }
 
@@ -189,7 +264,8 @@ mod engine {
         pub fn timestep(&mut self, label: String, interval: f64) -> bool {
             let timestep = self.timesteps.entry(label).or_insert(Timestep::new());
 
-            // poll input system
+            self.platform.service();
+            self.graphics_context.as_mut().unwrap().swap_buffers();
 
             timestep.step(interval)
         }
@@ -201,6 +277,9 @@ mod engine {
 
         fn initialise(&mut self) {
             // initialise renderer
+            let graphics_context =
+                graphics::Context::new(self.config.as_ref().unwrap(), &self.platform);
+            self.graphics_context = Some(graphics_context);
 
             // load tile sets into renderer
 
