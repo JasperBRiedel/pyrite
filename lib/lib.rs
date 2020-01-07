@@ -229,8 +229,8 @@ mod engine_binding {
         ($module:ident, $func:ident) => {
             $module
                 .add_wrapped(wrap_pyfunction!($func))
-                .expect(stringify!(failed to load binding for $func));
-        }
+                .expect(format!("failed to load binding for {}", stringify!($func)).as_str());
+        };
     }
 
     macro_rules! engine {
