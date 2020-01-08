@@ -54,7 +54,7 @@ while pyrite.run(config):
     # create a main loop that runs 60 times per second
     while pyrite.timestep("main", 60):
         # Exit the application if the escape key is pressed
-        if pyrite.input("keyboard", "escape"):
+        if pyrite.button_state("keyboard", "escape", "pressed"):
             pyrite.exit()
 
     # create a second loop for other behaviour that runs once per second

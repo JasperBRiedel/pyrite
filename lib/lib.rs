@@ -46,6 +46,14 @@ mod graphics {
         PossiblyCurrent, WindowedContext,
     };
 
+    pub struct Camera {
+        pub width: i64,
+        pub height: i64,
+        pub x: i64,
+        pub y: i64,
+        pub z: i64,
+    }
+
     pub struct Context {
         windowed_context: WindowedContext<PossiblyCurrent>,
     }
@@ -78,6 +86,7 @@ mod graphics {
 }
 
 mod platform {
+    use crate::graphics::Camera;
     use glutin::event::{Event, WindowEvent};
     use glutin::event_loop::{ControlFlow, EventLoop};
     use glutin::platform::desktop::EventLoopExtDesktop;
@@ -103,6 +112,28 @@ mod platform {
                     _ => (),
                 }
             });
+        }
+
+        pub fn mouse_position(&mut self, camera: Camera) -> (i64, i64) {
+            unimplemented!()
+        }
+
+        pub fn mouse_scroll(&mut self, timestep_identifier: &str) -> (i64, i64) {
+            unimplemented!()
+        }
+
+        pub fn button_state(
+            &mut self,
+            timestep_identifier: &str,
+            device: String,
+            button_name: String,
+            state: String,
+        ) -> bool {
+            unimplemented!()
+        }
+
+        pub fn text_input(&mut self, timestep_identifier: &str) -> String {
+            unimplemented!()
         }
     }
 }
@@ -205,6 +236,7 @@ mod engine {
         resources: Box<dyn resources::Provider>,
         state: EngineState,
         timesteps: HashMap<String, Timestep>,
+        current_timestep_identifier: String,
         platform: Platform,
         graphics_context: Option<graphics::Context>,
     }
@@ -216,6 +248,7 @@ mod engine {
                 resources,
                 state: EngineState::Starting,
                 timesteps: HashMap::new(),
+                current_timestep_identifier: String::from("outer"),
                 graphics_context: None,
                 platform: Platform::new(),
             }
@@ -261,18 +294,57 @@ mod engine {
         }
 
         // API Function
-        pub fn timestep(&mut self, label: String, interval: f64) -> bool {
-            let timestep = self.timesteps.entry(label).or_insert(Timestep::new());
+        pub fn timestep(&mut self, timestep_identifier: String, interval: f64) -> bool {
+            let timestep = self
+                .timesteps
+                .entry(timestep_identifier.clone())
+                .or_insert(Timestep::new());
 
             self.platform.service();
             self.graphics_context.as_mut().unwrap().swap_buffers();
 
-            timestep.step(interval)
+            let should_step = timestep.step(interval);
+
+            if should_step {
+                self.current_timestep_identifier = timestep_identifier;
+            } else {
+                if self.current_timestep_identifier != "outer" {
+                    self.current_timestep_identifier = String::from("outer");
+                }
+            }
+
+            return should_step;
         }
 
         // API Function
         pub fn exit(&mut self) {
             self.state = EngineState::Exiting;
+        }
+
+        // API Function
+        pub fn mouse_position(&mut self, camera: graphics::Camera) -> (i64, i64) {
+            self.platform.mouse_position(camera)
+        }
+
+        // API Function
+        pub fn mouse_scroll(&mut self) -> (i64, i64) {
+            self.platform
+                .mouse_scroll(&self.current_timestep_identifier)
+        }
+
+        // API Function
+        pub fn button_state(&mut self, device: String, button_name: String, state: String) -> bool {
+            self.platform.button_state(
+                &self.current_timestep_identifier,
+                device,
+                button_name,
+                state,
+            )
+        }
+
+        // API Function
+        pub fn text_input(&mut self) -> String {
+            self.platform.text_input(&self.current_timestep_identifier)
         }
 
         fn initialise(&mut self) {
@@ -330,6 +402,7 @@ mod engine_binding {
         bind!(m, load);
         bind!(m, timestep);
         bind!(m, exit);
+        bind!(m, mouse_position);
     }
 
     macro_rules! extract_or {
@@ -371,6 +444,42 @@ mod engine_binding {
     #[pyfunction]
     fn exit() {
         engine!().exit();
+    }
+
+    /// mouse_position(camera) -> (x, y)
+    /// --
+    /// Return the x and y position of the mouse.
+    ///
+    /// Needs to be provided with a camera to determine the coordinate space to be used
+    #[pyfunction]
+    fn mouse_position(camera: PyObject) -> (i64, i64) {
+        let camera = unimplemented!();
+
+        engine!().mouse_position(camera)
+    }
+
+    /// mouse_scroll() -> (x, y)
+    /// --
+    /// returns the mouse scroll delta since the last step of the game loop
+    #[pyfunction]
+    fn mouse_scroll() -> (i64, i64) {
+        engine!().mouse_scroll()
+    }
+
+    /// button_state(device, button, state) -> Boolean
+    /// --
+    /// returns true if the devices button is in the state specified
+    #[pyfunction]
+    fn button_state(device: String, button_name: String, state: String) -> bool {
+        engine!().button_state(device, button_name, state)
+    }
+
+    /// text_input() -> String
+    /// --
+    /// returns the text entered since it was last called
+    #[pyfunction]
+    fn text_input() -> String {
+        engine!().text_input()
     }
 
     fn pyobject_into_configuration(config: PyObject) -> Config {

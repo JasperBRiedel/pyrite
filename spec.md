@@ -27,6 +27,12 @@ while pyrite.run(configuration):
 
         origin_2d = {"x": 0, "y": 0, "z": 0}
 
+        # Maybe the camera should instead be the top left and bottom right of the map that want's to
+        # be rendered. Or a more user frendly approch would be to specify the width and height of
+        # the camera
+
+        camera = {"x": 0, "y": 0, "z": 0, "width": 10, "height": 10}
+
         map = [
             {"tile_name": "grass", "x": 0, "y": 0, "z": 0, "color": [255, 255, 255]}
             {"tile_name": "grass", "x": 0, "y": 1, "z": 0}
