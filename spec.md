@@ -21,6 +21,18 @@ configuration = {}
 
 while pyrite.run(configuration):
 
+    if pyrite.load():
+        pass
+
+    # Partially event driven
+    for event in pyrite.poll_events():
+        if event.type == "keyboard":
+            pass
+        if event.type == "mouse":
+            pass
+        if event.type == "network":
+            pass
+
     while pyrite.loop("main", 10)
         if pyrite.input("mouse", "left")
             pyrite.exit()
@@ -48,6 +60,29 @@ while pyrite.run(configuration):
     while pyrite.loop("foo", 1):
         print("1 second passed")
 ```
+
+# Input
+
+Button constants
+
+Button names;
+(keyboard_
+- a 
+- backspace
+- enter
+- space
+(mouse)
+- mouse_left
+- mouse_middle
+- mouse_right
+- mouse_0
+Button codes
+(keyboard) scan codes
+- #1
+- #2
+- #3
+- #4
+
 
 ## Directory structure
 

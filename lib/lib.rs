@@ -46,6 +46,10 @@ mod graphics {
         PossiblyCurrent, WindowedContext,
     };
 
+    use gl;
+    use gl::types::*;
+
+    #[derive(Debug)]
     pub struct Camera {
         pub width: i64,
         pub height: i64,
@@ -55,7 +59,7 @@ mod graphics {
     }
 
     pub struct Context {
-        windowed_context: WindowedContext<PossiblyCurrent>,
+        pub windowed_context: WindowedContext<PossiblyCurrent>,
     }
 
     impl Context {
@@ -75,66 +79,99 @@ mod graphics {
                     .expect("failed to access graphics context")
             };
 
+            gl::load_with(|s| windowed_context.get_proc_address(s) as *const _);
+
             Context { windowed_context }
         }
 
         // This is probably temporary, buffers will be swapped after draw calls.
         pub fn swap_buffers(&mut self) {
             self.windowed_context.swap_buffers().unwrap();
+            unsafe {
+                gl::ClearColor(0., 0.5, 0.5, 1.);
+                gl::Clear(gl::COLOR_BUFFER_BIT);
+            }
         }
     }
 }
 
 mod platform {
+    use crate::engine;
     use crate::graphics::Camera;
+    use glutin::dpi::{LogicalPosition, LogicalSize, PhysicalPosition};
     use glutin::event::{Event, WindowEvent};
     use glutin::event_loop::{ControlFlow, EventLoop};
     use glutin::platform::desktop::EventLoopExtDesktop;
+    use std::collections::HashMap;
 
     pub struct Platform {
         pub events: EventLoop<()>,
+        pub hidpi_scale_factor: f64,
+        button_states: HashMap<String, ButtonState>,
+        logical_mouse_position: (i32, i32),
     }
 
     impl Platform {
         pub fn new() -> Self {
             let events = EventLoop::new();
 
-            Self { events }
+            let button_states = HashMap::new();
+
+            Self {
+                events,
+                hidpi_scale_factor: 1.,
+                button_states,
+                logical_mouse_position: (0, 0),
+            }
         }
 
         pub fn service(&mut self) {
-            self.events.run_return(move |e, _, control_flow| {
+            let Self {
+                events,
+                logical_mouse_position,
+                ..
+            } = self;
+
+            events.run_return(|e, _, control_flow| {
                 *control_flow = ControlFlow::Exit;
                 match e {
-                    Event::WindowEvent { event, .. } => {
-                        println!("{:?}", event);
-                    }
+                    Event::WindowEvent { event, .. } => match event {
+                        WindowEvent::CursorMoved { position, .. } => {
+                            // possible bug here with hi-dpi screens
+                            *logical_mouse_position = position.into();
+                        }
+                        _ => (),
+                    },
                     _ => (),
                 }
             });
         }
 
-        pub fn mouse_position(&mut self, camera: Camera) -> (i64, i64) {
+        pub fn mouse_position(&mut self, window_size: LogicalSize, camera: Camera) -> (i64, i64) {
+            let normalised_mouse_position = (
+                self.logical_mouse_position.0 as f64 / window_size.width as f64,
+                self.logical_mouse_position.1 as f64 / window_size.height as f64,
+            );
+
+            (
+                (normalised_mouse_position.0 * camera.width as f64) as i64,
+                (normalised_mouse_position.1 * camera.height as f64) as i64,
+            )
+        }
+
+        pub fn button_down(&mut self, button: String) -> bool {
             unimplemented!()
         }
 
-        pub fn mouse_scroll(&mut self, timestep_identifier: &str) -> (i64, i64) {
+        pub fn poll_events(&mut self) -> Vec<engine::Event> {
             unimplemented!()
         }
+    }
 
-        pub fn button_state(
-            &mut self,
-            timestep_identifier: &str,
-            device: String,
-            button_name: String,
-            state: String,
-        ) -> bool {
-            unimplemented!()
-        }
-
-        pub fn text_input(&mut self, timestep_identifier: &str) -> String {
-            unimplemented!()
-        }
+    #[derive(Clone, Copy)]
+    enum ButtonState {
+        Pressed,
+        Released,
     }
 }
 
@@ -143,6 +180,7 @@ mod engine {
     use crate::platform::Platform;
     use crate::resources;
     use std::collections::HashMap;
+    use std::thread;
     use std::time::{Duration, Instant};
 
     #[derive(Debug)]
@@ -231,6 +269,11 @@ mod engine {
         }
     }
 
+    pub enum Event {
+        Button { button: String, state: String },
+        Text { text: String },
+    }
+
     pub struct Engine {
         config: Option<Config>,
         resources: Box<dyn resources::Provider>,
@@ -271,6 +314,10 @@ mod engine {
                     _ => (),
                 }
             }
+
+            // give the cpu a break, should probably calculate this
+            // value in the future to avoid a spiral of death with the time keeping
+            thread::sleep(Duration::from_millis(5));
 
             match self.state {
                 EngineState::Running | EngineState::Loading => true,
@@ -323,28 +370,23 @@ mod engine {
 
         // API Function
         pub fn mouse_position(&mut self, camera: graphics::Camera) -> (i64, i64) {
-            self.platform.mouse_position(camera)
+            if let Some(context) = &self.graphics_context {
+                self.platform
+                    .mouse_position(context.windowed_context.window().inner_size(), camera)
+            } else {
+                (0, 0)
+            }
         }
 
         // API Function
-        pub fn mouse_scroll(&mut self) -> (i64, i64) {
-            self.platform
-                .mouse_scroll(&self.current_timestep_identifier)
+        pub fn button_down(&mut self, button: String) -> bool {
+            self.platform.button_down(button)
         }
 
         // API Function
-        pub fn button_state(&mut self, device: String, button_name: String, state: String) -> bool {
-            self.platform.button_state(
-                &self.current_timestep_identifier,
-                device,
-                button_name,
-                state,
-            )
-        }
-
-        // API Function
-        pub fn text_input(&mut self) -> String {
-            self.platform.text_input(&self.current_timestep_identifier)
+        pub fn poll_events(&mut self) -> Vec<Event> {
+            // eventually will inject other events here such as network api stuff
+            self.platform.poll_events()
         }
 
         fn initialise(&mut self) {
@@ -403,6 +445,8 @@ mod engine_binding {
         bind!(m, timestep);
         bind!(m, exit);
         bind!(m, mouse_position);
+        bind!(m, button_down);
+        bind!(m, poll_events);
     }
 
     macro_rules! extract_or {
@@ -453,33 +497,48 @@ mod engine_binding {
     /// Needs to be provided with a camera to determine the coordinate space to be used
     #[pyfunction]
     fn mouse_position(camera: PyObject) -> (i64, i64) {
-        let camera = unimplemented!();
+        let camera = pyobject_into_camera(camera);
 
         engine!().mouse_position(camera)
     }
 
-    /// mouse_scroll() -> (x, y)
+    /// button_down(button) -> Boolean
     /// --
-    /// returns the mouse scroll delta since the last step of the game loop
+    /// returns true if button is down
     #[pyfunction]
-    fn mouse_scroll() -> (i64, i64) {
-        engine!().mouse_scroll()
+    fn button_down(button: String) -> bool {
+        engine!().button_down(button)
     }
 
-    /// button_state(device, button, state) -> Boolean
+    /// poll_events() -> [event]
     /// --
-    /// returns true if the devices button is in the state specified
+    /// returns an array of events
     #[pyfunction]
-    fn button_state(device: String, button_name: String, state: String) -> bool {
-        engine!().button_state(device, button_name, state)
+    fn poll_events() -> Vec<PyObject> {
+        let events = engine!().poll_events();
+        unimplemented!()
     }
 
-    /// text_input() -> String
-    /// --
-    /// returns the text entered since it was last called
-    #[pyfunction]
-    fn text_input() -> String {
-        engine!().text_input()
+    fn pyobject_into_camera(camera: PyObject) -> graphics::Camera {
+        let py = unsafe { Python::assume_gil_acquired() };
+
+        let camera: HashMap<String, PyObject> = camera
+            .extract(py)
+            .expect("Type error when reading camera structure");
+
+        let x = extract_or!(py, camera, "x", i64, 0);
+        let y = extract_or!(py, camera, "y", i64, 0);
+        let z = extract_or!(py, camera, "z", i64, 0);
+        let width = extract_or!(py, camera, "width", i64, 10);
+        let height = extract_or!(py, camera, "height", i64, 10);
+
+        graphics::Camera {
+            x,
+            y,
+            z,
+            width,
+            height,
+        }
     }
 
     fn pyobject_into_configuration(config: PyObject) -> Config {
