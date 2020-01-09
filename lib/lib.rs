@@ -64,7 +64,8 @@ mod graphics {
 
     impl Context {
         pub fn new(config: &engine::Config, platform: &platform::Platform) -> Self {
-            let window_size: LogicalSize = (config.window_width, config.window_height).into();
+            let window_size =
+                LogicalSize::new(config.window_width as f64, config.window_height as f64);
 
             let window_builder = WindowBuilder::new()
                 .with_title(&config.application_name)
@@ -98,17 +99,18 @@ mod graphics {
 mod platform {
     use crate::engine;
     use crate::graphics::Camera;
-    use glutin::dpi::{LogicalPosition, LogicalSize, PhysicalPosition};
-    use glutin::event::{Event, WindowEvent};
+    use glutin::dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize};
+    use glutin::event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent};
     use glutin::event_loop::{ControlFlow, EventLoop};
     use glutin::platform::desktop::EventLoopExtDesktop;
-    use std::collections::HashMap;
+    use std::collections::{HashMap, VecDeque};
 
     pub struct Platform {
         pub events: EventLoop<()>,
         pub hidpi_scale_factor: f64,
         button_states: HashMap<String, ButtonState>,
         logical_mouse_position: (i32, i32),
+        input_event_queue: VecDeque<engine::Event>,
     }
 
     impl Platform {
@@ -117,11 +119,14 @@ mod platform {
 
             let button_states = HashMap::new();
 
+            let input_event_queue = VecDeque::new();
+
             Self {
                 events,
                 hidpi_scale_factor: 1.,
                 button_states,
                 logical_mouse_position: (0, 0),
+                input_event_queue,
             }
         }
 
@@ -129,6 +134,8 @@ mod platform {
             let Self {
                 events,
                 logical_mouse_position,
+                button_states,
+                input_event_queue,
                 ..
             } = self;
 
@@ -140,6 +147,36 @@ mod platform {
                             // possible bug here with hi-dpi screens
                             *logical_mouse_position = position.into();
                         }
+                        WindowEvent::KeyboardInput { input, .. } => {
+                            let (transition, state) = match input.state {
+                                ElementState::Pressed => ("pressed".to_owned(), ButtonState::Down),
+                                ElementState::Released => ("released".to_owned(), ButtonState::Up),
+                            };
+
+                            let scancode_str = format!("K{}", input.scancode);
+
+                            button_states.insert(scancode_str.clone(), state);
+
+                            let scancode_event = engine::Event::Button {
+                                button: scancode_str,
+                                transition: transition.clone(),
+                            };
+
+                            input_event_queue.push_back(scancode_event);
+
+                            if let Some(virtual_key) = input.virtual_keycode {
+                                let key_str = virtual_key_to_string_identifier(virtual_key);
+
+                                button_states.insert(key_str.clone(), state);
+
+                                let scancode_event = engine::Event::Button {
+                                    button: key_str,
+                                    transition: transition,
+                                };
+
+                                input_event_queue.push_back(scancode_event);
+                            }
+                        }
                         _ => (),
                     },
                     _ => (),
@@ -147,7 +184,11 @@ mod platform {
             });
         }
 
-        pub fn mouse_position(&mut self, window_size: LogicalSize, camera: Camera) -> (i64, i64) {
+        pub fn mouse_position(
+            &mut self,
+            window_size: PhysicalSize<u32>,
+            camera: Camera,
+        ) -> (i64, i64) {
             let normalised_mouse_position = (
                 self.logical_mouse_position.0 as f64 / window_size.width as f64,
                 self.logical_mouse_position.1 as f64 / window_size.height as f64,
@@ -160,7 +201,10 @@ mod platform {
         }
 
         pub fn button_down(&mut self, button: String) -> bool {
-            unimplemented!()
+            match self.button_states.get(&button) {
+                Some(state) => *state == ButtonState::Down,
+                None => false,
+            }
         }
 
         pub fn poll_events(&mut self) -> Vec<engine::Event> {
@@ -168,10 +212,17 @@ mod platform {
         }
     }
 
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, PartialEq, Debug)]
     enum ButtonState {
-        Pressed,
-        Released,
+        Down,
+        Up,
+    }
+
+    fn virtual_key_to_string_identifier(virtual_key: VirtualKeyCode) -> String {
+        match virtual_key {
+            _ => "",
+        }
+        .to_owned()
     }
 }
 
@@ -269,8 +320,9 @@ mod engine {
         }
     }
 
+    #[derive(Clone, Debug)]
     pub enum Event {
-        Button { button: String, state: String },
+        Button { button: String, transition: String },
         Text { text: String },
     }
 
