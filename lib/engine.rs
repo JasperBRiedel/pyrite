@@ -94,6 +94,7 @@ impl Timestep {
 #[derive(Clone, Debug)]
 pub enum Event {
     Button { button: String, transition: String },
+    Scroll { x: i32, y: i32 },
     Text { text: String },
 }
 

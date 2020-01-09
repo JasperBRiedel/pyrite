@@ -1,7 +1,9 @@
 use crate::engine;
 use crate::graphics::Camera;
 use glutin::dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize};
-use glutin::event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent};
+use glutin::event::{
+    ElementState, Event, KeyboardInput, MouseButton, MouseScrollDelta, VirtualKeyCode, WindowEvent,
+};
 use glutin::event_loop::{ControlFlow, EventLoop};
 use glutin::platform::desktop::EventLoopExtDesktop;
 use std::collections::{HashMap, VecDeque};
@@ -11,6 +13,7 @@ pub struct Platform {
     pub hidpi_scale_factor: f64,
     button_states: HashMap<String, ButtonState>,
     logical_mouse_position: (i32, i32),
+    smooth_mouse_scroll_accumulator: (f32, f32),
     input_event_queue: VecDeque<engine::Event>,
 }
 
@@ -27,6 +30,7 @@ impl Platform {
             hidpi_scale_factor: 1.,
             button_states,
             logical_mouse_position: (0, 0),
+            smooth_mouse_scroll_accumulator: (0., 0.),
             input_event_queue,
         }
     }
@@ -37,6 +41,7 @@ impl Platform {
             logical_mouse_position,
             button_states,
             input_event_queue,
+            smooth_mouse_scroll_accumulator,
             ..
         } = self;
 
@@ -47,6 +52,75 @@ impl Platform {
                     WindowEvent::CursorMoved { position, .. } => {
                         // possible bug here with hi-dpi screens
                         *logical_mouse_position = position.into();
+                    }
+                    WindowEvent::MouseWheel { delta, .. } => {
+                        let mut delta = match delta {
+                            MouseScrollDelta::LineDelta(x, y) => (x, y),
+                            MouseScrollDelta::PixelDelta(delta) => {
+                                smooth_mouse_scroll_accumulator.0 += (delta.x / 10.) as f32;
+                                smooth_mouse_scroll_accumulator.1 += (delta.y / 10.) as f32;
+
+                                let delta_x = if smooth_mouse_scroll_accumulator.0.abs() >= 1.0 {
+                                    let delta = smooth_mouse_scroll_accumulator.0;
+                                    smooth_mouse_scroll_accumulator.0 = 0.;
+                                    delta
+                                } else {
+                                    0.
+                                };
+
+                                let delta_y = if smooth_mouse_scroll_accumulator.1.abs() >= 1.0 {
+                                    let delta = smooth_mouse_scroll_accumulator.1;
+                                    smooth_mouse_scroll_accumulator.1 = 0.;
+                                    delta
+                                } else {
+                                    0.
+                                };
+
+                                (delta_x, delta_y)
+                            }
+                        };
+
+                        let event = engine::Event::Scroll {
+                            x: delta.0 as i32,
+                            y: delta.1 as i32,
+                        };
+
+                        input_event_queue.push_back(dbg!(event));
+                    }
+                    WindowEvent::MouseInput { button, state, .. } => {
+                        let (transition, state) = match state {
+                            ElementState::Pressed => ("pressed".to_owned(), ButtonState::Down),
+                            ElementState::Released => ("released".to_owned(), ButtonState::Up),
+                        };
+
+                        let (button_code, button_name) = match button {
+                            MouseButton::Left => ("M1".to_owned(), Some("mouse_left".to_owned())),
+                            MouseButton::Middle => {
+                                ("M2".to_owned(), Some("mouse_middle".to_owned()))
+                            }
+                            MouseButton::Right => ("M3".to_owned(), Some("mouse_right".to_owned())),
+                            MouseButton::Other(code) => (format!("M{}", code), None),
+                        };
+
+                        button_states.insert(button_code.clone(), state);
+
+                        let button_code_event = engine::Event::Button {
+                            button: button_code,
+                            transition: transition.clone(),
+                        };
+
+                        input_event_queue.push_back(button_code_event);
+
+                        if let Some(button_name) = button_name {
+                            button_states.insert(button_name.clone(), state);
+
+                            let button_name_event = engine::Event::Button {
+                                button: button_name,
+                                transition,
+                            };
+
+                            input_event_queue.push_back(button_name_event);
+                        }
                     }
                     WindowEvent::KeyboardInput { input, .. } => {
                         let (transition, state) = match input.state {
