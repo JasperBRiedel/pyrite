@@ -85,7 +85,7 @@ impl Platform {
                             y: delta.1 as i32,
                         };
 
-                        input_event_queue.push_back(dbg!(event));
+                        input_event_queue.push_back(event);
                     }
                     WindowEvent::MouseInput { button, state, .. } => {
                         let (transition, state) = match state {
@@ -130,26 +130,34 @@ impl Platform {
 
                         let scancode_str = format!("K{}", input.scancode);
 
-                        button_states.insert(scancode_str.clone(), state);
+                        let last_state = button_states.insert(scancode_str.clone(), state);
 
                         let scancode_event = engine::Event::Button {
                             button: scancode_str,
                             transition: transition.clone(),
                         };
 
-                        input_event_queue.push_back(scancode_event);
+                        if last_state.is_some() && last_state.unwrap() != state {
+                            input_event_queue.push_back(scancode_event);
+                        } else if last_state.is_none() {
+                            input_event_queue.push_back(scancode_event);
+                        }
 
                         if let Some(virtual_key) = input.virtual_keycode {
                             let key_str = virtual_key_to_string_identifier(virtual_key);
 
-                            button_states.insert(key_str.clone(), state);
+                            let last_state = button_states.insert(key_str.clone(), state);
 
-                            let scancode_event = engine::Event::Button {
+                            let named_event = engine::Event::Button {
                                 button: key_str,
                                 transition: transition,
                             };
 
-                            input_event_queue.push_back(scancode_event);
+                            if last_state.is_some() && last_state.unwrap() != state {
+                                input_event_queue.push_back(named_event);
+                            } else if last_state.is_none() {
+                                input_event_queue.push_back(named_event);
+                            }
                         }
                     }
                     _ => (),
@@ -179,7 +187,7 @@ impl Platform {
     }
 
     pub fn poll_events(&mut self) -> Vec<engine::Event> {
-        unimplemented!()
+        self.input_event_queue.drain(..).collect()
     }
 }
 

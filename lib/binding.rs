@@ -1,5 +1,6 @@
 use super::*;
 use engine::*;
+use pyo3::types::PyDict;
 use pyo3::wrap_pyfunction;
 use std::collections::HashMap;
 
@@ -108,8 +109,36 @@ fn button_down(button: String) -> bool {
 /// returns an array of events
 #[pyfunction]
 fn poll_events() -> Vec<PyObject> {
-    let events = engine!().poll_events();
-    unimplemented!()
+    engine!()
+        .poll_events()
+        .into_iter()
+        .map(|e| event_into_pyobject(e))
+        .collect()
+}
+
+fn event_into_pyobject(event: Event) -> PyObject {
+    let py = unsafe { Python::assume_gil_acquired() };
+
+    let py_event = PyDict::new(py);
+
+    match event {
+        Event::Button { button, transition } => {
+            py_event.set_item("type", "button");
+            py_event.set_item("button", button);
+            py_event.set_item("transition", transition);
+        }
+        Event::Scroll { x, y } => {
+            py_event.set_item("type", "scroll");
+            py_event.set_item("x", x);
+            py_event.set_item("y", y);
+        }
+        Event::Text { text } => {
+            py_event.set_item("type", "text");
+            py_event.set_item("text", text);
+        }
+    };
+
+    return py_event.to_object(py);
 }
 
 fn pyobject_into_camera(camera: PyObject) -> graphics::Camera {

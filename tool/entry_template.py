@@ -51,6 +51,9 @@ while pyrite.run(config):
         # load stuff here
         pass
 
+    for event in pyrite.poll_events():
+        pass
+
     # create a main loop that runs 60 times per second
     while pyrite.timestep("main", 60):
         # Exit the application if the escape key is pressed
