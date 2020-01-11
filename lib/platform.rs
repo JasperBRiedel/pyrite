@@ -15,6 +15,7 @@ pub struct Platform {
     logical_mouse_position: (i32, i32),
     smooth_mouse_scroll_accumulator: (f32, f32),
     input_event_queue: VecDeque<engine::Event>,
+    pub close_requested: bool,
 }
 
 impl Platform {
@@ -32,6 +33,7 @@ impl Platform {
             logical_mouse_position: (0, 0),
             smooth_mouse_scroll_accumulator: (0., 0.),
             input_event_queue,
+            close_requested: false,
         }
     }
 
@@ -42,6 +44,7 @@ impl Platform {
             button_states,
             input_event_queue,
             smooth_mouse_scroll_accumulator,
+            close_requested,
             ..
         } = self;
 
@@ -49,6 +52,9 @@ impl Platform {
             *control_flow = ControlFlow::Exit;
             match e {
                 Event::WindowEvent { event, .. } => match event {
+                    WindowEvent::CloseRequested => {
+                        *close_requested = true;
+                    }
                     WindowEvent::CursorMoved { position, .. } => {
                         // possible bug here with hi-dpi screens
                         *logical_mouse_position = position.into();

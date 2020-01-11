@@ -143,6 +143,10 @@ impl Engine {
         // value in the future to avoid a spiral of death with the time keeping
         thread::sleep(Duration::from_millis(5));
 
+        if self.platform.close_requested {
+            self.state = EngineState::Exiting;
+        }
+
         match self.state {
             EngineState::Running | EngineState::Loading => true,
             EngineState::Exiting => {
