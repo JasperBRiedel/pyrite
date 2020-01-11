@@ -27,6 +27,8 @@ pub fn start<R: resources::Provider + 'static>(resource_provider: R) {
         Ok(_) => (),           // game exited gracefully, clean up and exit engine.
         Err(e) => e.print(py), // game syntax or logic error occurred, write crash log, clean up and exit engine.
     }
+
+    binding::destroy_engine();
 }
 
 fn inject_python_module(py: Python, module: &PyModule) {

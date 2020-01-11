@@ -43,6 +43,12 @@ pub fn load_bindings(m: &PyModule) {
     bind!(m, poll_events);
 }
 
+pub fn destroy_engine() {
+    unsafe {
+        ENGINE_INSTANCE = None;
+    }
+}
+
 macro_rules! extract_or {
     ($py:ident, $map:ident, $key:literal, $type:ty, $default:expr) => {
         $map.get($key)

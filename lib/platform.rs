@@ -38,6 +38,8 @@ impl Platform {
         }
     }
 
+    pub fn clean_up(&mut self) {}
+
     pub fn service(&mut self, graphics_context: &mut Option<graphics::Context>) {
         let Self {
             events,

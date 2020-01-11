@@ -68,4 +68,6 @@ impl Context {
             gl::Clear(gl::COLOR_BUFFER_BIT);
         }
     }
+
+    pub fn clean_up(self) {}
 }

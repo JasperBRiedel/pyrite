@@ -139,6 +139,8 @@ impl Engine {
             }
         }
 
+        self.graphics_context.as_mut().unwrap().swap_buffers();
+
         // give the cpu a break, should probably calculate this
         // value in the future to avoid a spiral of death with the time keeping
         thread::sleep(Duration::from_millis(5));
@@ -176,7 +178,6 @@ impl Engine {
             .or_insert(Timestep::new());
 
         self.platform.service(&mut self.graphics_context);
-        self.graphics_context.as_mut().unwrap().swap_buffers();
 
         let should_step = timestep.step(interval);
 
@@ -228,5 +229,9 @@ impl Engine {
         // hook up input system
     }
 
-    fn clean(&mut self) {}
+    fn clean(&mut self) {
+        if let Some(graphics_context) = self.graphics_context.take() {
+            graphics_context.clean_up();
+        }
+    }
 }
