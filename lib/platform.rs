@@ -7,6 +7,7 @@ use glutin::event::{
 };
 use glutin::event_loop::{ControlFlow, EventLoop};
 use glutin::platform::desktop::EventLoopExtDesktop;
+#[cfg(target_os = "linux")]
 use glutin::platform::unix::EventLoopExtUnix;
 use std::collections::{HashMap, VecDeque};
 
@@ -23,8 +24,8 @@ pub struct Platform {
 impl Platform {
     pub fn new() -> Self {
         // try and create an x11 event loop first, then fall back to glutins defaults.
-        let events = if let Ok(events) = EventLoop::new_x11() {
-            events
+        let events = if cfg!(target_os = "linux") {
+            EventLoop::new_x11().unwrap_or_else(|_| EventLoop::new())
         } else {
             EventLoop::new()
         };
