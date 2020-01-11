@@ -1,8 +1,8 @@
 use crate::engine;
 use crate::platform;
 use glutin::{
-    dpi::LogicalSize, event_loop::EventLoop, window::WindowBuilder, ContextBuilder,
-    PossiblyCurrent, WindowedContext,
+    dpi::LogicalSize, event_loop::EventLoop, window::WindowBuilder, Api, ContextBuilder, GlProfile,
+    GlRequest, PossiblyCurrent, WindowedContext,
 };
 
 use gl;
@@ -32,6 +32,9 @@ impl Context {
 
         let windowed_context = unsafe {
             ContextBuilder::new()
+                .with_gl(GlRequest::Specific(Api::OpenGl, (3, 3)))
+                .with_gl_profile(GlProfile::Core)
+                .with_vsync(true)
                 .build_windowed(window_builder, &platform.events)
                 .expect("graphics context initialisation failed")
                 .make_current()
