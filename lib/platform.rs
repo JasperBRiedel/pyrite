@@ -53,6 +53,11 @@ impl Platform {
                         // possible bug here with hi-dpi screens
                         *logical_mouse_position = position.into();
                     }
+                    WindowEvent::ReceivedCharacter(c) => {
+                        input_event_queue.push_back(engine::Event::Text {
+                            text: c.to_string(),
+                        });
+                    }
                     WindowEvent::MouseWheel { delta, .. } => {
                         let mut delta = match delta {
                             MouseScrollDelta::LineDelta(x, y) => (x, y),
