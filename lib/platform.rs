@@ -21,14 +21,20 @@ pub struct Platform {
     pub close_requested: bool,
 }
 
+#[cfg(target_os = "linux")]
+fn new_platform_eventloop() -> EventLoop<()> {
+    EventLoop::new_x11().unwrap_or_else(|_| EventLoop::new())
+}
+
+#[cfg(not(target_os = "linux"))]
+fn new_platform_eventloop() -> EventLoop<()> {
+    EventLoop::new()
+}
+
 impl Platform {
     pub fn new() -> Self {
         // try and create an x11 event loop first, then fall back to glutins defaults.
-        let events = if cfg!(target_os = "linux") {
-            EventLoop::new_x11().unwrap_or_else(|_| EventLoop::new())
-        } else {
-            EventLoop::new()
-        };
+        let events = new_platform_eventloop();
 
         let button_states = HashMap::new();
 
