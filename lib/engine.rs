@@ -175,7 +175,7 @@ impl Engine {
             .entry(timestep_identifier.clone())
             .or_insert(Timestep::new());
 
-        self.platform.service();
+        self.platform.service(&mut self.graphics_context);
         self.graphics_context.as_mut().unwrap().swap_buffers();
 
         let should_step = timestep.step(interval);

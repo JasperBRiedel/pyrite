@@ -1,4 +1,5 @@
 use crate::engine;
+use crate::graphics;
 use crate::graphics::Camera;
 use glutin::dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize};
 use glutin::event::{
@@ -37,7 +38,7 @@ impl Platform {
         }
     }
 
-    pub fn service(&mut self) {
+    pub fn service(&mut self, graphics_context: &mut Option<graphics::Context>) {
         let Self {
             events,
             logical_mouse_position,
@@ -52,6 +53,14 @@ impl Platform {
             *control_flow = ControlFlow::Exit;
             match e {
                 Event::WindowEvent { event, .. } => match event {
+                    WindowEvent::Resized(physical_size) => {
+                        if let Some(context) = graphics_context.as_mut() {
+                            context.resize_framebuffer(
+                                physical_size.width as i32,
+                                physical_size.height as i32,
+                            );
+                        }
+                    }
                     WindowEvent::CloseRequested => {
                         *close_requested = true;
                     }
