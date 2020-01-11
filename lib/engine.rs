@@ -233,5 +233,7 @@ impl Engine {
         if let Some(graphics_context) = self.graphics_context.take() {
             graphics_context.clean_up();
         }
+
+        self.platform.service(&mut None);
     }
 }
