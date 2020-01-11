@@ -7,6 +7,7 @@ use glutin::event::{
 };
 use glutin::event_loop::{ControlFlow, EventLoop};
 use glutin::platform::desktop::EventLoopExtDesktop;
+use glutin::platform::unix::EventLoopExtUnix;
 use std::collections::{HashMap, VecDeque};
 
 pub struct Platform {
@@ -21,7 +22,12 @@ pub struct Platform {
 
 impl Platform {
     pub fn new() -> Self {
-        let events = EventLoop::new();
+        // try and create an x11 event loop first, then fall back to glutins defaults.
+        let events = if let Ok(events) = EventLoop::new_x11() {
+            events
+        } else {
+            EventLoop::new()
+        };
 
         let button_states = HashMap::new();
 
