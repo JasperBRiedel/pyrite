@@ -13,6 +13,7 @@ use std::collections::{HashMap, VecDeque};
 
 pub struct Platform {
     pub events: EventLoop<()>,
+    platform_event_queue: VecDeque<Event<'static, ()>>,
     pub hidpi_scale_factor: f64,
     button_states: HashMap<String, ButtonState>,
     logical_mouse_position: (i32, i32),
@@ -40,8 +41,11 @@ impl Platform {
 
         let input_event_queue = VecDeque::new();
 
+        let platform_event_queue = VecDeque::new();
+
         Self {
             events,
+            platform_event_queue,
             hidpi_scale_factor: 1.,
             button_states,
             logical_mouse_position: (0, 0),
@@ -53,20 +57,28 @@ impl Platform {
 
     pub fn clean_up(&mut self) {}
 
-    pub fn service(&mut self, graphics_context: &mut Option<graphics::Context>) {
+    fn queue_platform_events(&mut self) {
         let Self {
             events,
-            logical_mouse_position,
-            button_states,
-            input_event_queue,
-            smooth_mouse_scroll_accumulator,
-            close_requested,
+            platform_event_queue,
             ..
         } = self;
 
         events.run_return(|e, _, control_flow| {
             *control_flow = ControlFlow::Exit;
-            match e {
+            if let Some(static_event) = e.to_static() {
+                platform_event_queue.push_back(static_event);
+            }
+        });
+    }
+
+    pub fn service(&mut self, graphics_context: &mut Option<graphics::Context>) {
+        // load platform events into the queue
+        self.queue_platform_events();
+
+        // process events
+        for event in self.platform_event_queue.drain(0..) {
+            match event {
                 Event::WindowEvent { event, .. } => match event {
                     WindowEvent::Resized(physical_size) => {
                         if let Some(context) = graphics_context.as_mut() {
@@ -77,50 +89,57 @@ impl Platform {
                         }
                     }
                     WindowEvent::CloseRequested => {
-                        *close_requested = true;
+                        self.close_requested = true;
                     }
                     WindowEvent::CursorMoved { position, .. } => {
                         // possible bug here with hi-dpi screens
-                        *logical_mouse_position = position.into();
+                        self.logical_mouse_position = position.into();
                     }
                     WindowEvent::ReceivedCharacter(c) => {
-                        input_event_queue.push_back(engine::Event::Text {
+                        self.input_event_queue.push_back(engine::Event::Text {
                             text: c.to_string(),
                         });
                     }
                     WindowEvent::MouseWheel { delta, .. } => {
-                        let mut delta = match delta {
-                            MouseScrollDelta::LineDelta(x, y) => (x, y),
+                        match delta {
+                            MouseScrollDelta::LineDelta(x, y) => {
+                                self.smooth_mouse_scroll_accumulator.0 += x as f32;
+                                self.smooth_mouse_scroll_accumulator.1 += y as f32;
+                            }
                             MouseScrollDelta::PixelDelta(delta) => {
-                                smooth_mouse_scroll_accumulator.0 += (delta.x / 10.) as f32;
-                                smooth_mouse_scroll_accumulator.1 += (delta.y / 10.) as f32;
-
-                                let delta_x = if smooth_mouse_scroll_accumulator.0.abs() >= 1.0 {
-                                    let delta = smooth_mouse_scroll_accumulator.0;
-                                    smooth_mouse_scroll_accumulator.0 = 0.;
-                                    delta
-                                } else {
-                                    0.
-                                };
-
-                                let delta_y = if smooth_mouse_scroll_accumulator.1.abs() >= 1.0 {
-                                    let delta = smooth_mouse_scroll_accumulator.1;
-                                    smooth_mouse_scroll_accumulator.1 = 0.;
-                                    delta
-                                } else {
-                                    0.
-                                };
-
-                                (delta_x, delta_y)
+                                self.smooth_mouse_scroll_accumulator.0 += (delta.x / 10.) as f32;
+                                self.smooth_mouse_scroll_accumulator.1 += (delta.y / 10.) as f32;
                             }
                         };
 
-                        let event = engine::Event::Scroll {
-                            x: delta.0 as i32,
-                            y: delta.1 as i32,
+                        let mut raise_event = false;
+
+                        let delta_x = if self.smooth_mouse_scroll_accumulator.0.abs() >= 1.0 {
+                            let delta = self.smooth_mouse_scroll_accumulator.0;
+                            self.smooth_mouse_scroll_accumulator.0 = 0.;
+                            raise_event = true;
+                            delta
+                        } else {
+                            0.
                         };
 
-                        input_event_queue.push_back(event);
+                        let delta_y = if self.smooth_mouse_scroll_accumulator.1.abs() >= 1.0 {
+                            let delta = self.smooth_mouse_scroll_accumulator.1;
+                            self.smooth_mouse_scroll_accumulator.1 = 0.;
+                            raise_event = true;
+                            delta
+                        } else {
+                            0.
+                        };
+
+                        if raise_event {
+                            let event = engine::Event::Scroll {
+                                x: delta_x as i32,
+                                y: delta_y as i32,
+                            };
+
+                            self.input_event_queue.push_back(event);
+                        }
                     }
                     WindowEvent::MouseInput { button, state, .. } => {
                         let (transition, state) = match state {
@@ -137,24 +156,24 @@ impl Platform {
                             MouseButton::Other(code) => (format!("M{}", code), None),
                         };
 
-                        button_states.insert(button_code.clone(), state);
+                        self.button_states.insert(button_code.clone(), state);
 
                         let button_code_event = engine::Event::Button {
                             button: button_code,
                             transition: transition.clone(),
                         };
 
-                        input_event_queue.push_back(button_code_event);
+                        self.input_event_queue.push_back(button_code_event);
 
                         if let Some(button_name) = button_name {
-                            button_states.insert(button_name.clone(), state);
+                            self.button_states.insert(button_name.clone(), state);
 
                             let button_name_event = engine::Event::Button {
                                 button: button_name,
                                 transition,
                             };
 
-                            input_event_queue.push_back(button_name_event);
+                            self.input_event_queue.push_back(button_name_event);
                         }
                     }
                     WindowEvent::KeyboardInput { input, .. } => {
@@ -165,7 +184,7 @@ impl Platform {
 
                         let scancode_str = format!("K{}", input.scancode);
 
-                        let last_state = button_states.insert(scancode_str.clone(), state);
+                        let last_state = self.button_states.insert(scancode_str.clone(), state);
 
                         let scancode_event = engine::Event::Button {
                             button: scancode_str,
@@ -173,15 +192,15 @@ impl Platform {
                         };
 
                         if last_state.is_some() && last_state.unwrap() != state {
-                            input_event_queue.push_back(scancode_event);
+                            self.input_event_queue.push_back(scancode_event);
                         } else if last_state.is_none() {
-                            input_event_queue.push_back(scancode_event);
+                            self.input_event_queue.push_back(scancode_event);
                         }
 
                         if let Some(virtual_key) = input.virtual_keycode {
                             let key_str = virtual_key_to_string_identifier(virtual_key);
 
-                            let last_state = button_states.insert(key_str.clone(), state);
+                            let last_state = self.button_states.insert(key_str.clone(), state);
 
                             let named_event = engine::Event::Button {
                                 button: key_str,
@@ -189,9 +208,9 @@ impl Platform {
                             };
 
                             if last_state.is_some() && last_state.unwrap() != state {
-                                input_event_queue.push_back(named_event);
+                                self.input_event_queue.push_back(named_event);
                             } else if last_state.is_none() {
-                                input_event_queue.push_back(named_event);
+                                self.input_event_queue.push_back(named_event);
                             }
                         }
                     }
@@ -199,7 +218,7 @@ impl Platform {
                 },
                 _ => (),
             }
-        });
+        }
     }
 
     pub fn mouse_position(&mut self, window_size: PhysicalSize<u32>, camera: Camera) -> (i64, i64) {
