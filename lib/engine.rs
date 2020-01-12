@@ -139,7 +139,7 @@ impl Engine {
             }
         }
 
-        self.graphics_context.as_mut().unwrap().swap_buffers();
+        self.graphics_context.as_ref().unwrap().present_frame();
 
         // give the cpu a break, should probably calculate this
         // value in the future to avoid a spiral of death with the time keeping
