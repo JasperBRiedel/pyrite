@@ -133,7 +133,9 @@ impl Context {
             self.shader.set_uniform_1f("time", seconds_elapsed);
             self.shader
                 .set_uniform_2f("framebuffer_size", self.framebuffer_size);
-            // need to set texture uniforms here
+
+            // set tileset texture to texture unit 0
+            self.shader.set_uniform_1i("tileset", 0);
 
             self.quad.draw();
         }
@@ -275,6 +277,15 @@ impl Shader {
         }
     }
 
+    pub fn set_uniform_1i(&self, name: &str, value: i32) {
+        unsafe {
+            let name = ffi::CString::new(name).unwrap();
+            let location = gl::GetUniformLocation(self.program, name.as_ptr());
+
+            gl::Uniform1i(location, value);
+        }
+    }
+
     pub fn set_uniform_1f(&self, name: &str, value: f32) {
         unsafe {
             let name = ffi::CString::new(name).unwrap();
@@ -375,7 +386,7 @@ impl Quad {
         1., 1., 1., 1., // top right
         1., -1., 1., 0., // bottom right
         -1., -1., 0., 0., // bottom left
-        -1., 1., 0., 0., // top left
+        -1., 1., 0., 1., // top left
     ];
 
     const QUAD_INDICES: [i32; 6] = [

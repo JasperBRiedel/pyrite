@@ -6,6 +6,8 @@ in vec2 tex_pos;
 uniform float time;
 uniform vec2 framebuffer_size;
 
+uniform sampler2D tileset; 
+
 void main()
 {
     vec2 framebuffer_pos = tex_pos * framebuffer_size;
@@ -15,6 +17,6 @@ void main()
     if (framebuffer_pos.x <= 50.0) {
         FragColor = vec4(1.0, 0.0, 0.0, 1.0);
     } else {
-        FragColor = vec4(col, 1.0);
+        FragColor = texture(tileset, tex_pos);
     }
 }
