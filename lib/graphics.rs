@@ -24,6 +24,7 @@ pub struct Camera {
 pub struct Context {
     pub windowed_context: WindowedContext<PossiblyCurrent>,
     renderer_started: Instant,
+    framebuffer_size: (f32, f32),
     quad: Quad,
     shader: Shader,
 }
@@ -52,6 +53,8 @@ impl Context {
 
         let renderer_started = Instant::now();
 
+        let framebuffer_size = (window_size.width as f32, window_size.height as f32);
+
         let quad = Quad::new();
 
         let shader = Shader::new(
@@ -62,6 +65,7 @@ impl Context {
         Context {
             windowed_context,
             renderer_started,
+            framebuffer_size,
             quad,
             shader,
         }
@@ -69,6 +73,7 @@ impl Context {
 
     pub fn resize_framebuffer(&mut self, width: i32, height: i32) {
         unsafe {
+            self.framebuffer_size = (width as f32, height as f32);
             gl::Viewport(0, 0, width, height);
         }
     }
@@ -80,6 +85,8 @@ impl Context {
 
         self.shader.bind();
         self.shader.set_uniform_1f("time", seconds_elapsed);
+        self.shader
+            .set_uniform_2f("framebuffer_size", self.framebuffer_size);
         self.quad.draw();
 
         self.windowed_context.swap_buffers().unwrap();
