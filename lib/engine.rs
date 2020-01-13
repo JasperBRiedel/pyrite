@@ -42,14 +42,14 @@ pub struct Config {
     pub application_name: String,
     pub application_version: String,
     pub engine_mode: EngineMode,
-    // base_grid_size: u32, // should probably calculate this from the smallest tile size
     pub window_width: u32,
     pub window_height: u32,
     pub blend_mode: BlendMode,
+    pub default_tileset: String,
     pub tiles: HashMap<String, Tileset>, // the key should be the set name and not file name
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Tileset {
     pub filename: String,
     pub horizontal_tiles: u32,
@@ -220,13 +220,18 @@ impl Engine {
 
     fn initialise(&mut self) {
         // initialise renderer
-        let graphics_context =
+        let mut graphics_context =
             graphics::Context::new(self.config.as_ref().unwrap(), &self.platform);
-        self.graphics_context = Some(graphics_context);
+
+        let config = self
+            .config
+            .as_ref()
+            .expect("tried to initialise renderer without configuration being loaded first");
 
         // load tile sets into renderer
+        graphics_context.load_tileset(config.default_tileset.clone(), &config, &self.resources);
 
-        // hook up input system
+        self.graphics_context = Some(graphics_context);
     }
 
     fn clean(&mut self) {

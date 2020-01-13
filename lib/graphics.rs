@@ -1,5 +1,6 @@
 use crate::engine;
 use crate::platform;
+use crate::resources;
 use gl;
 use gl::types::*;
 use glutin::{
@@ -25,6 +26,7 @@ pub struct Context {
     pub windowed_context: WindowedContext<PossiblyCurrent>,
     renderer_started: Instant,
     framebuffer_size: (f32, f32),
+    tileset: Option<Tileset>,
     quad: Quad,
     shader: Shader,
 }
@@ -55,6 +57,8 @@ impl Context {
 
         let framebuffer_size = (window_size.width as f32, window_size.height as f32);
 
+        let tileset = None;
+
         let quad = Quad::new();
 
         let shader = Shader::new(
@@ -66,8 +70,46 @@ impl Context {
             windowed_context,
             renderer_started,
             framebuffer_size,
+            tileset,
             quad,
             shader,
+        }
+    }
+
+    pub fn load_tileset(
+        &mut self,
+        tileset_name: String,
+        config: &engine::Config,
+        resources: &Box<dyn resources::Provider>,
+    ) {
+        let tileset_config = config.tiles.get(&tileset_name).cloned().unwrap();
+
+        let image_bytes = resources
+            .read_to_bytes(&format!("tilesets/{}", tileset_config.filename))
+            .expect("failed to load tileset image");
+        let tileset_image = image::load_from_memory(&image_bytes).expect("failed to load tileset");
+
+        match &mut self.tileset {
+            Some(existing_tileset) => {
+                existing_tileset.load(
+                    &tileset_image,
+                    (
+                        tileset_config.horizontal_tiles,
+                        tileset_config.vertical_tiles,
+                    ),
+                    tileset_config.tile_names,
+                );
+            }
+            None => {
+                self.tileset = Some(Tileset::new(
+                    &tileset_image,
+                    (
+                        tileset_config.horizontal_tiles,
+                        tileset_config.vertical_tiles,
+                    ),
+                    tileset_config.tile_names,
+                ));
+            }
         }
     }
 
@@ -81,13 +123,20 @@ impl Context {
     pub fn present_frame(&self) {
         let seconds_elapsed = self.renderer_started.elapsed().as_secs_f32();
 
-        self.clear_frame();
+        if let Some(tileset) = &self.tileset {
+            self.clear_frame();
 
-        self.shader.bind();
-        self.shader.set_uniform_1f("time", seconds_elapsed);
-        self.shader
-            .set_uniform_2f("framebuffer_size", self.framebuffer_size);
-        self.quad.draw();
+            unsafe { gl::ActiveTexture(gl::TEXTURE0) };
+            tileset.texture.bind();
+
+            self.shader.bind();
+            self.shader.set_uniform_1f("time", seconds_elapsed);
+            self.shader
+                .set_uniform_2f("framebuffer_size", self.framebuffer_size);
+            // need to set texture uniforms here
+
+            self.quad.draw();
+        }
 
         self.windowed_context.swap_buffers().unwrap();
     }
@@ -101,6 +150,106 @@ impl Context {
 
     pub fn clean_up(self) {
         self.quad.clean_up();
+    }
+}
+
+struct Tileset {
+    pub texture: Texture,
+}
+
+impl Tileset {
+    fn new(
+        image: &image::DynamicImage,
+        tileset_dimensions: (u32, u32),
+        tile_names: Vec<String>,
+    ) -> Self {
+        let texture = Texture::from_image(image);
+
+        Self { texture }
+    }
+
+    fn load(
+        &mut self,
+        image: &image::DynamicImage,
+        tileset_dimensions: (u32, u32),
+        tile_names: Vec<String>,
+    ) {
+        unimplemented!()
+    }
+}
+
+pub struct Texture {
+    texture: u32,
+}
+
+impl Texture {
+    fn from_image(image: &image::DynamicImage) -> Self {
+        unsafe {
+            use image::{GenericImage, GenericImageView, Pixel};
+
+            let mut texture = 0;
+            gl::GenTextures(1, &mut texture);
+
+            gl::BindTexture(gl::TEXTURE_2D, texture);
+
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
+
+            let pixels: Vec<u8> = image.flipv().to_rgba().into_raw();
+
+            gl::TexImage2D(
+                gl::TEXTURE_2D,
+                0,
+                gl::RGBA as i32,
+                image.width() as i32,
+                image.height() as i32,
+                0,
+                gl::RGBA,
+                gl::UNSIGNED_BYTE,
+                std::mem::transmute(&pixels.as_slice()[0]),
+            );
+
+            if texture <= 0 {
+                panic!("texture creation failed");
+            }
+
+            Self { texture }
+        }
+    }
+
+    fn update_from_image(&mut self, image: &image::DynamicImage) {
+        use image::{GenericImage, GenericImageView, Pixel};
+
+        unsafe {
+            gl::BindTexture(gl::TEXTURE_2D, self.texture);
+
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
+
+            let pixels: Vec<u8> = image.flipv().to_rgba().into_raw();
+
+            gl::TexImage2D(
+                gl::TEXTURE_2D,
+                0,
+                gl::RGBA as i32,
+                image.width() as i32,
+                image.height() as i32,
+                0,
+                gl::RGBA,
+                gl::UNSIGNED_BYTE,
+                std::mem::transmute(&pixels.as_slice()[0]),
+            );
+        }
+    }
+
+    fn bind(&self) {
+        unsafe {
+            gl::BindTexture(gl::TEXTURE_2D, self.texture);
+        }
     }
 }
 

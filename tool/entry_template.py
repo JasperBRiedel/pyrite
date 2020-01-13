@@ -24,6 +24,9 @@ config = {
     # "alternate" will alternate between the tiles every few frames
     "blend_mode": "halves",
 
+    # The default tileset to be loaded on engine start
+    "default_tileset": "basic_tiles",
+
     # Tile set descriptors
     "tiles": {
         # Name of the tile set

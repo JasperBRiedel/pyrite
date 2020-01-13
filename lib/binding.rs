@@ -203,6 +203,14 @@ fn pyobject_into_configuration(config: PyObject) -> Config {
 
     let blend_mode = BlendMode::from_string(&blend_mode_string);
 
+    let default_tileset = extract_or!(
+        py,
+        config,
+        "default_tileset",
+        String,
+        "default.png".to_string()
+    );
+
     let tiles = pyobject_into_tiles(
         extract_or!(py, config, "tiles", HashMap<String, PyObject>, HashMap::new()),
     );
@@ -214,6 +222,7 @@ fn pyobject_into_configuration(config: PyObject) -> Config {
         window_width,
         window_height,
         blend_mode,
+        default_tileset,
         tiles,
     }
 }
