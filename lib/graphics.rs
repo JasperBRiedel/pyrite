@@ -13,13 +13,10 @@ use std::ptr;
 use std::str;
 use std::time::{Duration, Instant};
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Camera {
-    pub width: i64,
-    pub height: i64,
-    pub x: i64,
-    pub y: i64,
-    pub z: i64,
+    pub viewport_width: f32,
+    pub viewport_height: f32,
 }
 
 pub struct Context {
@@ -27,6 +24,7 @@ pub struct Context {
     renderer_started: Instant,
     framebuffer_size: (f32, f32),
     tileset: Option<Tileset>,
+    camera: Camera,
     quad: Quad,
     shader: Shader,
 }
@@ -59,6 +57,12 @@ impl Context {
 
         let tileset = None;
 
+        // should probably load a default from the config or calculate one
+        let camera = Camera {
+            viewport_width: config.viewport_height,
+            viewport_height: config.viewport_width,
+        };
+
         let quad = Quad::new();
 
         let shader = Shader::new(
@@ -71,6 +75,7 @@ impl Context {
             renderer_started,
             framebuffer_size,
             tileset,
+            camera,
             quad,
             shader,
         }
@@ -120,6 +125,14 @@ impl Context {
         }
     }
 
+    pub fn set_camera(&mut self, camera: Camera) {
+        self.camera = dbg!(camera);
+    }
+
+    pub fn get_camera(&self) -> &Camera {
+        &self.camera
+    }
+
     pub fn present_frame(&self) {
         let seconds_elapsed = self.renderer_started.elapsed().as_secs_f32();
 
@@ -130,9 +143,16 @@ impl Context {
             tileset.texture.bind();
 
             self.shader.bind();
+
             self.shader.set_uniform_1f("time", seconds_elapsed);
+
             self.shader
                 .set_uniform_2f("framebuffer_size", self.framebuffer_size);
+
+            self.shader.set_uniform_2f(
+                "viewport_size",
+                (self.camera.viewport_width, self.camera.viewport_height),
+            );
 
             // set tileset texture to texture unit 0
             self.shader.set_uniform_1i("tileset", 0);

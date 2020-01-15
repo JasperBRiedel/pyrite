@@ -19,6 +19,10 @@ config = {
     "window_width": 800,
     "window_height": 600,
 
+    # Determines the initial viewport size in tiles
+    "viewport_width": 10,
+    "viewport_height": 10,
+
     # Blend mode controls the behaviour when many tiles occupy the same grid space
     # "halves" will display portion of each tile in the space
     # "alternate" will alternate between the tiles every few frames

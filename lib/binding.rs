@@ -41,6 +41,7 @@ pub fn load_bindings(m: &PyModule) {
     bind!(m, mouse_position);
     bind!(m, button_down);
     bind!(m, poll_events);
+    bind!(m, camera);
 }
 
 pub fn destroy_engine() {
@@ -96,10 +97,16 @@ fn exit() {
 ///
 /// Needs to be provided with a camera to determine the coordinate space to be used
 #[pyfunction]
-fn mouse_position(camera: PyObject) -> (i64, i64) {
-    let camera = pyobject_into_camera(camera);
+fn mouse_position() -> (i64, i64) {
+    engine!().mouse_position()
+}
 
-    engine!().mouse_position(camera)
+/// camera(viewport_width, viewport_height)
+/// --
+/// Set the camera viewport
+#[pyfunction]
+fn camera(viewport_width: f32, viewport_height: f32) {
+    engine!().set_camera(viewport_width, viewport_height)
 }
 
 /// button_down(button) -> Boolean
@@ -129,45 +136,51 @@ fn event_into_pyobject(event: Event) -> PyObject {
 
     match event {
         Event::Button { button, transition } => {
-            py_event.set_item("type", "button");
-            py_event.set_item("button", button);
-            py_event.set_item("transition", transition);
+            py_event
+                .set_item("type", "button")
+                .expect("failed to set event item");
+            py_event
+                .set_item("button", button)
+                .expect("failed to set event item");
+            py_event
+                .set_item("transition", transition)
+                .expect("failed to set event item");
         }
         Event::Scroll { x, y } => {
-            py_event.set_item("type", "scroll");
-            py_event.set_item("x", x);
-            py_event.set_item("y", y);
+            py_event
+                .set_item("type", "scroll")
+                .expect("failed to set event item");
+            py_event.set_item("x", x).expect("failed to set event item");
+            py_event.set_item("y", y).expect("failed to set event item");
         }
         Event::Text { text } => {
-            py_event.set_item("type", "text");
-            py_event.set_item("text", text);
+            py_event
+                .set_item("type", "text")
+                .expect("failed to set event item");
+            py_event
+                .set_item("text", text)
+                .expect("failed to set event item");
         }
     };
 
     return py_event.to_object(py);
 }
 
-fn pyobject_into_camera(camera: PyObject) -> graphics::Camera {
-    let py = unsafe { Python::assume_gil_acquired() };
+// fn pyobject_into_camera(camera: PyObject) -> graphics::Camera {
+//     let py = unsafe { Python::assume_gil_acquired() };
 
-    let camera: HashMap<String, PyObject> = camera
-        .extract(py)
-        .expect("Type error when reading camera structure");
+//     let camera: HashMap<String, PyObject> = camera
+//         .extract(py)
+//         .expect("Type error when reading camera structure");
 
-    let x = extract_or!(py, camera, "x", i64, 0);
-    let y = extract_or!(py, camera, "y", i64, 0);
-    let z = extract_or!(py, camera, "z", i64, 0);
-    let width = extract_or!(py, camera, "width", i64, 10);
-    let height = extract_or!(py, camera, "height", i64, 10);
+//     let viewport_width = extract_or!(py, camera, "viewport_width", f32, 10.);
+//     let viewport_height = extract_or!(py, camera, "viewport_height", f32, 10.);
 
-    graphics::Camera {
-        x,
-        y,
-        z,
-        width,
-        height,
-    }
-}
+//     graphics::Camera {
+//         viewport_width,
+//         viewport_height,
+//     }
+// }
 
 fn pyobject_into_configuration(config: PyObject) -> Config {
     let py = unsafe { Python::assume_gil_acquired() };
@@ -198,6 +211,8 @@ fn pyobject_into_configuration(config: PyObject) -> Config {
 
     let window_width = extract_or!(py, config, "window_width", u32, 800);
     let window_height = extract_or!(py, config, "window_height", u32, 600);
+    let viewport_width = extract_or!(py, config, "viewport_width", f32, 10.);
+    let viewport_height = extract_or!(py, config, "viewport_height", f32, 10.);
 
     let blend_mode_string = extract_or!(py, config, "blend_mode", String, "halves".to_string());
 
@@ -221,6 +236,8 @@ fn pyobject_into_configuration(config: PyObject) -> Config {
         engine_mode,
         window_width,
         window_height,
+        viewport_width,
+        viewport_height,
         blend_mode,
         default_tileset,
         tiles,

@@ -44,6 +44,8 @@ pub struct Config {
     pub engine_mode: EngineMode,
     pub window_width: u32,
     pub window_height: u32,
+    pub viewport_width: f32,
+    pub viewport_height: f32,
     pub blend_mode: BlendMode,
     pub default_tileset: String,
     pub tiles: HashMap<String, Tileset>, // the key should be the set name and not file name
@@ -198,12 +200,26 @@ impl Engine {
     }
 
     // API Function
-    pub fn mouse_position(&mut self, camera: graphics::Camera) -> (i64, i64) {
+    pub fn mouse_position(&mut self) -> (i64, i64) {
         if let Some(context) = &self.graphics_context {
-            self.platform
-                .mouse_position(context.windowed_context.window().inner_size(), camera)
+            self.platform.mouse_position(
+                context.windowed_context.window().inner_size(),
+                context.get_camera().clone(),
+            )
         } else {
             (0, 0)
+        }
+    }
+
+    // API Function
+    pub fn set_camera(&mut self, viewport_width: f32, viewport_height: f32) {
+        if let Some(context) = &mut self.graphics_context {
+            let camera = graphics::Camera {
+                viewport_width,
+                viewport_height,
+            };
+
+            context.set_camera(camera);
         }
     }
 

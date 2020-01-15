@@ -37,25 +37,18 @@ while pyrite.run(configuration):
         if pyrite.input("mouse", "left")
             pyrite.exit()
 
-        origin_2d = {"x": 0, "y": 0, "z": 0}
+        // viewport is 10 x 10 tiles
+        pyrite.camera(10, 10)
 
-        # Maybe the camera should instead be the top left and bottom right of the map that want's to
-        # be rendered. Or a more user frendly approch would be to specify the width and height of
-        # the camera
+        // adds a tile to the scene 
+        pyrite.tile(name, x, y)
+        pyrite.tile(name, x, y, r, g, b, a)
+        pyrite.tile(name, x, y, r, g, b, a, flipx, flipy)
 
-        camera = {"x": 0, "y": 0, "z": 0, "width": 10, "height": 10}
+        // flags that the draw buffer is ready to be shown on screen
+        pyrite.clear(x, y)
+        pyrite.clear(x, y, width, height)
 
-        map = [
-            {"tile_name": "grass", "x": 0, "y": 0, "z": 0, "color": [255, 255, 255]}
-            {"tile_name": "grass", "x": 0, "y": 1, "z": 0}
-            {"tile_name": "dirt", "x": 1, "y": 0, "z": 0}
-        ]
-
-        pyrite.draw_tiles(origin_2d, map)
-
-        origin_3d = {"x": 0, "y": 0, "z": 0, "yaw": 0, "pitch": 0}
-
-        pyrtie.draw_voxels(origin_3d, map)
 
     while pyrite.loop("foo", 1):
         print("1 second passed")
@@ -124,10 +117,10 @@ configuration = {
     "application_version": "0.1.0",
     "engine_mode": "client" | "server",
     "base_grid_size": 20,
-    "window_resize_mode": "fixed" | "stretch" | "fit" | "fill",
+    "window_resizeable": "fixed" | "stretch" | "fit" | "fill",
     "window_width": 800,
     "window_height": 600,
-    "blend_mode": "halves" | "alternate", // how should the engine handle multiple tiles in the same
+    "blend_mode": "halves" | "alternate" | "layer", // how should the engine handle multiple tiles in the same
     space
     "tiles": {
         "basic_tiles.png": {

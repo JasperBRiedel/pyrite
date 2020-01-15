@@ -228,8 +228,8 @@ impl Platform {
         );
 
         (
-            (normalised_mouse_position.0 * camera.width as f64) as i64,
-            (normalised_mouse_position.1 * camera.height as f64) as i64,
+            (normalised_mouse_position.0 * camera.viewport_width as f64) as i64,
+            (normalised_mouse_position.1 * camera.viewport_height as f64) as i64,
         )
     }
 
