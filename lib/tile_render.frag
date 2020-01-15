@@ -8,10 +8,15 @@ uniform vec2 framebuffer_size;
 uniform vec2 viewport_size;
 
 uniform sampler2D tileset;
+uniform sampler2D scene_tiles;
+uniform sampler2D scene_tiles_modifiers;
 
 void sample_tile(ivec2 tile_index, vec2 uv) {
     if (tile_index.x == 0 && tile_index.y == 0) {
         FragColor = texture(tileset, uv);
+    } else if (tile_index.x == 1 && tile_index.y == 1) {
+        vec2 tileset_uv_offset = texelFetch(scene_tiles, tile_index, 0).xy;
+        FragColor = vec4(tileset_uv_offset.xy, 0.0, 1.0);
     } else {
         FragColor = vec4(uv.xyx, 1.0);
     }

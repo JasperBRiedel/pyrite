@@ -25,6 +25,7 @@ pub struct Context {
     framebuffer_size: (f32, f32),
     tileset: Option<Tileset>,
     camera: Camera,
+    scene: Scene,
     quad: Quad,
     shader: Shader,
 }
@@ -57,11 +58,12 @@ impl Context {
 
         let tileset = None;
 
-        // should probably load a default from the config or calculate one
         let camera = Camera {
             viewport_width: config.viewport_height,
             viewport_height: config.viewport_width,
         };
+
+        let scene = Scene::new(camera.viewport_width as i32, camera.viewport_height as i32);
 
         let quad = Quad::new();
 
@@ -76,6 +78,7 @@ impl Context {
             framebuffer_size,
             tileset,
             camera,
+            scene,
             quad,
             shader,
         }
@@ -110,6 +113,30 @@ impl Context {
         }
     }
 
+    pub fn set_tile(
+        &mut self,
+        tile_name: &str,
+        x: i32,
+        y: i32,
+        r: u8,
+        g: u8,
+        b: u8,
+        flip_x: bool,
+        flip_y: bool,
+    ) {
+        if let Some(tileset) = &self.tileset {
+            self.scene
+                .set_tile(tileset, tile_name, x, y, r, g, b, flip_x, flip_y);
+
+            // queue texture upload here
+        }
+    }
+
+    pub fn clear_tiles(&mut self) {
+        self.scene.clear();
+        // queue texture upload here
+    }
+
     pub fn resize_framebuffer(&mut self, width: i32, height: i32) {
         unsafe {
             self.framebuffer_size = (width as f32, height as f32);
@@ -133,6 +160,10 @@ impl Context {
 
             unsafe { gl::ActiveTexture(gl::TEXTURE0) };
             tileset.texture.bind();
+            unsafe { gl::ActiveTexture(gl::TEXTURE1) };
+            self.scene.tiles_texture.bind();
+            unsafe { gl::ActiveTexture(gl::TEXTURE2) };
+            self.scene.tiles_modifiers_texture.bind();
 
             self.shader.bind();
 
@@ -148,6 +179,8 @@ impl Context {
 
             // set tileset texture to texture unit 0
             self.shader.set_uniform_1i("tileset", 0);
+            self.shader.set_uniform_1i("scene_tiles", 1);
+            self.shader.set_uniform_1i("scene_tiles_modifiers", 2);
 
             self.quad.draw();
         }
@@ -164,6 +197,85 @@ impl Context {
 
     pub fn clean_up(self) {
         self.quad.clean_up();
+    }
+}
+
+struct Scene {
+    width: i32,
+    height: i32,
+
+    tiles: Vec<(f32, f32)>,
+    tiles_modifiers: Vec<(u8, u8, u8, u8)>,
+
+    tiles_texture: Texture,
+    tiles_modifiers_texture: Texture,
+}
+
+impl Scene {
+    fn new(width: i32, height: i32) -> Self {
+        todo!("Work on update scene textures");
+
+        let tiles = (0..width * height).map(|_| (0.0, 0.0)).collect();
+        let tiles_modifiers = (0..width * height).map(|_| (255, 255, 255, 0)).collect();
+
+        // create scene textures and upload scene data
+        let tiles_texture = Texture::from_vec2_f32(width, height, &tiles);
+        let tiles_modifiers_texture = Texture::from_vec4_u8(width, height, &tiles_modifiers);
+
+        Self {
+            width,
+            height,
+            tiles,
+            tiles_modifiers,
+            tiles_texture,
+            tiles_modifiers_texture,
+        }
+    }
+
+    fn set_tile(
+        &mut self,
+        tileset: &Tileset,
+        name: &str,
+        x: i32,
+        y: i32,
+        r: u8,
+        g: u8,
+        b: u8,
+        flip_x: bool,
+        flip_y: bool,
+    ) {
+        let tile_texture_location = if let Some(location) = tileset.get_tile_texture_location(name)
+        {
+            location
+        } else {
+            return;
+        };
+
+        let index = (y * self.width + x) as usize;
+
+        if let Some(tile) = dbg!(self.tiles.get_mut(index)) {
+            *tile = tile_texture_location;
+        }
+
+        if let Some(modifiers) = self.tiles_modifiers.get_mut(index) {
+            let flip = match (flip_x, flip_y) {
+                (false, false) => 0,  // flip none = 0
+                (true, false) => 51,  // flip x = 0.2
+                (false, true) => 102, // flip y = 0.4
+                (true, true) => 153,  // flip x and y = .6
+            };
+
+            *modifiers = (r, g, b, flip);
+        }
+    }
+
+    fn clear(&mut self) {
+        for (tile, modifiers) in self.tiles.iter_mut().zip(self.tiles_modifiers.iter_mut()) {
+            // tile texture x and y
+            *tile = (0.0, 0.0);
+            // tile modifiers r, g, b, flip
+            *modifiers = (255, 255, 255, 0);
+        }
     }
 }
 
@@ -189,6 +301,10 @@ impl Tileset {
         tile_names: Vec<String>,
     ) {
         unimplemented!()
+    }
+
+    fn get_tile_texture_location(&self, tile_name: &str) -> Option<(f32, f32)> {
+        Some((0.0, 0.0))
     }
 }
 
@@ -244,7 +360,7 @@ impl Texture {
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
 
-            let pixels: Vec<u8> = image.flipv().to_rgba().into_raw();
+            let pixels: Vec<u8> = image.to_rgba().into_raw();
 
             gl::TexImage2D(
                 gl::TEXTURE_2D,
@@ -257,6 +373,71 @@ impl Texture {
                 gl::UNSIGNED_BYTE,
                 std::mem::transmute(&pixels.as_slice()[0]),
             );
+        }
+    }
+
+    fn from_vec2_f32(width: i32, height: i32, data: &Vec<(f32, f32)>) -> Self {
+        unsafe {
+            let mut texture = 0;
+            gl::GenTextures(1, &mut texture);
+
+            gl::BindTexture(gl::TEXTURE_2D, texture);
+
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
+
+            // could be a problem with the internal format here
+            gl::TexImage2D(
+                gl::TEXTURE_2D,
+                0,
+                gl::RG as i32,
+                width,
+                height,
+                0,
+                gl::RG,
+                gl::FLOAT,
+                std::mem::transmute(&data.as_slice()[0]),
+            );
+
+            if texture <= 0 {
+                panic!("texture creation failed");
+            }
+
+            Self { texture }
+        }
+    }
+
+    fn from_vec4_u8(width: i32, height: i32, data: &Vec<(u8, u8, u8, u8)>) -> Self {
+        unsafe {
+            let mut texture = 0;
+            gl::GenTextures(1, &mut texture);
+
+            gl::BindTexture(gl::TEXTURE_2D, texture);
+
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
+
+            gl::TexImage2D(
+                gl::TEXTURE_2D,
+                0,
+                gl::RGBA as i32,
+                width,
+                height,
+                0,
+                gl::RGBA,
+                gl::UNSIGNED_BYTE,
+                std::mem::transmute(&data.as_slice()[0]),
+            );
+
+            if texture <= 0 {
+                panic!("texture creation failed");
+            }
+
+            Self { texture }
         }
     }
 
