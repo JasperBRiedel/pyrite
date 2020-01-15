@@ -125,10 +125,18 @@ fn new_command(project_name: String, project_path: String) {
 
     fs::create_dir_all(&project_dir).expect("failed to create project directory");
 
-    let template = include_str!("entry_template.py").replace("APPLICATION_NAME", &project_name);
+    let entry_template =
+        include_str!("../template/entry.py").replace("APPLICATION_NAME", &project_name);
     let entry_file_path = project_dir.join("entry.py");
     let mut entry_file = fs::File::create(entry_file_path).expect("failed to create entry.py");
-    write!(entry_file, "{}", template).expect("failed to write entry.py");
+    write!(entry_file, "{}", entry_template).expect("failed to write entry.py");
+
+    let tileset_template = include_bytes!("../template/tiles.png");
+    let tileset_file_path = project_dir.join("tiles.png");
+    let mut entry_file = fs::File::create(tileset_file_path).expect("failed to create tiles.png");
+    entry_file
+        .write_all(tileset_template)
+        .expect("failed to write tiles.png");
 
     println!("Project created at \"{}\"", project_dir.display());
 }

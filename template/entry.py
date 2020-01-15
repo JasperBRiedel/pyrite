@@ -19,36 +19,24 @@ config = {
     "window_width": 800,
     "window_height": 600,
 
-    # Determines the initial viewport size in tiles
-    "viewport_width": 10,
-    "viewport_height": 10,
-
     # Blend mode controls the behaviour when many tiles occupy the same grid space
     # "halves" will display portion of each tile in the space
     # "alternate" will alternate between the tiles every few frames
     "blend_mode": "halves",
 
-    # The default tileset to be loaded on engine start
-    "default_tileset": "basic_tiles",
+    # tileset path
+    "tileset_path": "tiles.png",
+    # Number of tiles along the horizontal axis
+    "tileset_width": 3,
+    # Number of tiles along the vertical axis
+    "tileset_height": 1,
 
-    # Tile set descriptors
-    "tiles": {
-        # Name of the tile set
-        "basic_tiles": {
-            # file name of the tile set inside the tilesets directory
-            "filename": "basic_tiles.png",
-            # Number of tiles along the horizontal axis
-            "horizontal_tiles": 3,
-            # Number of tiles along the vertical axis
-            "vertical_tiles": 1,
-            # Names of each tile in order from left to right, top to bottom.
-            "tile_names": [
-                "grass",
-                "dirt",
-                "stone"
-            ]
-        }
-    }
+    # Names of each tile in order from left to right, top to bottom.
+    "tile_names": [
+        "grass",
+        "dirt",
+        "stone"
+    ]
 }
 
 # All application logic should exist within the engine loop below
