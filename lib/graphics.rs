@@ -219,7 +219,7 @@ impl Texture {
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
 
-            let pixels: Vec<u8> = image.flipv().to_rgba().into_raw();
+            let pixels: Vec<u8> = image.to_rgba().into_raw();
 
             gl::TexImage2D(
                 gl::TEXTURE_2D,
@@ -403,10 +403,10 @@ pub struct Quad {
 
 impl Quad {
     const QUAD_VERTS: [f32; 16] = [
-        1., 1., 1., 1., // top right
-        1., -1., 1., 0., // bottom right
-        -1., -1., 0., 0., // bottom left
-        -1., 1., 0., 1., // top left
+        1., 1., 1., 0., // top right
+        1., -1., 1., 1., // bottom right
+        -1., -1., 0., 1., // bottom left
+        -1., 1., 0., 0., // top left
     ];
 
     const QUAD_INDICES: [i32; 6] = [
