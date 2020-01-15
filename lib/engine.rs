@@ -47,15 +47,9 @@ pub struct Config {
     pub viewport_width: f32,
     pub viewport_height: f32,
     pub blend_mode: BlendMode,
-    pub default_tileset: String,
-    pub tiles: HashMap<String, Tileset>, // the key should be the set name and not file name
-}
-
-#[derive(Clone, Debug)]
-pub struct Tileset {
-    pub filename: String,
-    pub horizontal_tiles: u32,
-    pub vertical_tiles: u32,
+    pub tileset_width: u32,
+    pub tileset_height: u32,
+    pub tileset_path: String,
     pub tile_names: Vec<String>,
 }
 
@@ -245,7 +239,7 @@ impl Engine {
             .expect("tried to initialise renderer without configuration being loaded first");
 
         // load tile sets into renderer
-        graphics_context.load_tileset(config.default_tileset.clone(), &config, &self.resources);
+        graphics_context.load_tileset(config.tileset_path.clone(), &config, &self.resources);
 
         self.graphics_context = Some(graphics_context);
     }

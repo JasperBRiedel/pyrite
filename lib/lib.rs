@@ -10,7 +10,7 @@ pub fn start<R: resources::Provider + 'static>(resource_provider: R) {
     let py_lock = Python::acquire_gil();
     let py = py_lock.python();
 
-    let entry_path = "source/entry.py";
+    let entry_path = "entry.py";
     let entry_source = resource_provider
         .read_to_string(entry_path)
         .expect("failed to load entry.py");

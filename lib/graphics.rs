@@ -87,10 +87,8 @@ impl Context {
         config: &engine::Config,
         resources: &Box<dyn resources::Provider>,
     ) {
-        let tileset_config = config.tiles.get(&tileset_name).cloned().unwrap();
-
         let image_bytes = resources
-            .read_to_bytes(&format!("tilesets/{}", tileset_config.filename))
+            .read_to_bytes(&config.tileset_path)
             .expect("failed to load tileset image");
         let tileset_image = image::load_from_memory(&image_bytes).expect("failed to load tileset");
 
@@ -98,21 +96,15 @@ impl Context {
             Some(existing_tileset) => {
                 existing_tileset.load(
                     &tileset_image,
-                    (
-                        tileset_config.horizontal_tiles,
-                        tileset_config.vertical_tiles,
-                    ),
-                    tileset_config.tile_names,
+                    (config.tileset_width, config.tileset_height),
+                    config.tile_names.clone(),
                 );
             }
             None => {
                 self.tileset = Some(Tileset::new(
                     &tileset_image,
-                    (
-                        tileset_config.horizontal_tiles,
-                        tileset_config.vertical_tiles,
-                    ),
-                    tileset_config.tile_names,
+                    (config.tileset_width, config.tileset_height),
+                    config.tile_names.clone(),
                 ));
             }
         }

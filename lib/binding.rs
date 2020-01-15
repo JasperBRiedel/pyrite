@@ -218,17 +218,10 @@ fn pyobject_into_configuration(config: PyObject) -> Config {
 
     let blend_mode = BlendMode::from_string(&blend_mode_string);
 
-    let default_tileset = extract_or!(
-        py,
-        config,
-        "default_tileset",
-        String,
-        "default.png".to_string()
-    );
-
-    let tiles = pyobject_into_tiles(
-        extract_or!(py, config, "tiles", HashMap<String, PyObject>, HashMap::new()),
-    );
+    let tileset_width = extract_or!(py, config, "tileset_width", u32, 3);
+    let tileset_height = extract_or!(py, config, "tileset_width", u32, 3);
+    let tileset_path = extract_or!(py, config, "tileset_path", String, "default.png".to_owned());
+    let tile_names = extract_or!(py, config, "tile_names", Vec<String>, Vec::new());
 
     Config {
         application_name,
@@ -239,35 +232,9 @@ fn pyobject_into_configuration(config: PyObject) -> Config {
         viewport_width,
         viewport_height,
         blend_mode,
-        default_tileset,
-        tiles,
+        tileset_width,
+        tileset_height,
+        tileset_path,
+        tile_names,
     }
-}
-
-fn pyobject_into_tiles(py_tiles: HashMap<String, PyObject>) -> HashMap<String, Tileset> {
-    let py = unsafe { Python::assume_gil_acquired() };
-
-    let mut tiles = HashMap::with_capacity(py_tiles.len());
-
-    for (name, py_tileset) in py_tiles {
-        let py_tileset = py_tileset
-            .extract::<HashMap<String, PyObject>>(py)
-            .expect("Type error reading tile set configuration");
-
-        let filename = extract_or!(py, py_tileset, "filename", String, String::new());
-        let horizontal_tiles = extract_or!(py, py_tileset, "horizontal_tiles", u32, 1);
-        let vertical_tiles = extract_or!(py, py_tileset, "vertical_tiles", u32, 1);
-        let tile_names = extract_or!(py, py_tileset, "tile_names", Vec<String>, Vec::new());
-
-        let tileset = Tileset {
-            filename,
-            horizontal_tiles,
-            vertical_tiles,
-            tile_names,
-        };
-
-        tiles.insert(name, tileset);
-    }
-
-    tiles
 }

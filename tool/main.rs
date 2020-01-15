@@ -108,6 +108,8 @@ fn new_command(project_name: String, project_path: String) {
         return;
     }
 
+    println!("Creating project \"{}\"", project_name);
+
     let tool_exe = env::current_exe().expect("failed to locate pyrite executable");
 
     let tool_dir = tool_exe
@@ -121,22 +123,10 @@ fn new_command(project_name: String, project_path: String) {
         return;
     }
 
-    println!("Creating project \"{}\"", project_name);
-
-    let tilesets_dir = project_dir.join("tilesets");
-    let audio_dir = project_dir.join("audio");
-    let source_dir = project_dir.join("source");
-    let resources_dir = project_dir.join("resources");
-    let release_dir = project_dir.join("release");
-
-    fs::create_dir_all(tilesets_dir).expect("failed to create tilesets directory");
-    fs::create_dir_all(audio_dir).expect("failed to create audio directory");
-    fs::create_dir_all(source_dir.clone()).expect("failed to create source directory");
-    fs::create_dir_all(resources_dir).expect("failed to create resources directory");
-    fs::create_dir_all(release_dir).expect("failed to create release directory");
+    fs::create_dir_all(&project_dir).expect("failed to create project directory");
 
     let template = include_str!("entry_template.py").replace("APPLICATION_NAME", &project_name);
-    let entry_file_path = source_dir.join("entry.py");
+    let entry_file_path = project_dir.join("entry.py");
     let mut entry_file = fs::File::create(entry_file_path).expect("failed to create entry.py");
     write!(entry_file, "{}", template).expect("failed to write entry.py");
 
