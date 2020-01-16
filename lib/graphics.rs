@@ -127,14 +127,11 @@ impl Context {
         if let Some(tileset) = &self.tileset {
             self.scene
                 .set_tile(tileset, tile_name, x, y, r, g, b, flip_x, flip_y);
-
-            // queue texture upload here
         }
     }
 
     pub fn clear_tiles(&mut self) {
         self.scene.clear();
-        // queue texture upload here
     }
 
     pub fn resize_framebuffer(&mut self, width: i32, height: i32) {
@@ -145,6 +142,9 @@ impl Context {
     }
 
     pub fn set_camera(&mut self, camera: Camera) {
+        self.scene
+            .resize(camera.viewport_width as i32, camera.viewport_height as i32);
+
         self.camera = dbg!(camera);
     }
 
@@ -152,11 +152,13 @@ impl Context {
         &self.camera
     }
 
-    pub fn present_frame(&self) {
+    pub fn present_frame(&mut self) {
         let seconds_elapsed = self.renderer_started.elapsed().as_secs_f32();
 
         if let Some(tileset) = &self.tileset {
             self.clear_frame();
+
+            self.scene.upload();
 
             unsafe { gl::ActiveTexture(gl::TEXTURE0) };
             tileset.texture.bind();
@@ -209,18 +211,20 @@ struct Scene {
 
     tiles_texture: Texture,
     tiles_modifiers_texture: Texture,
+
+    data_changed_since_upload: bool,
 }
 
 impl Scene {
     fn new(width: i32, height: i32) -> Self {
-        todo!("Work on update scene textures");
-
         let tiles = (0..width * height).map(|_| (0.0, 0.0)).collect();
         let tiles_modifiers = (0..width * height).map(|_| (255, 255, 255, 0)).collect();
 
         // create scene textures and upload scene data
         let tiles_texture = Texture::from_vec2_f32(width, height, &tiles);
         let tiles_modifiers_texture = Texture::from_vec4_u8(width, height, &tiles_modifiers);
+
+        let data_changed_since_upload = false;
 
         Self {
             width,
@@ -229,6 +233,26 @@ impl Scene {
             tiles_modifiers,
             tiles_texture,
             tiles_modifiers_texture,
+            data_changed_since_upload,
+        }
+    }
+
+    fn resize(&mut self, width: i32, height: i32) {
+        self.tiles = (0..width * height).map(|_| (0.0, 0.0)).collect();
+        self.tiles_modifiers = (0..width * height).map(|_| (255, 255, 255, 0)).collect();
+        self.data_changed_since_upload = true;
+    }
+
+    fn upload(&mut self) {
+        if self.data_changed_since_upload {
+            self.tiles_texture
+                .update_from_vec2_f32(self.width, self.height, &self.tiles);
+
+            self.tiles_modifiers_texture.update_from_vec4_u8(
+                self.width,
+                self.height,
+                &self.tiles_modifiers,
+            );
         }
     }
 
@@ -255,6 +279,8 @@ impl Scene {
 
         if let Some(tile) = dbg!(self.tiles.get_mut(index)) {
             *tile = tile_texture_location;
+
+            self.data_changed_since_upload = true;
         }
 
         if let Some(modifiers) = self.tiles_modifiers.get_mut(index) {
@@ -266,6 +292,8 @@ impl Scene {
             };
 
             *modifiers = (r, g, b, flip);
+
+            self.data_changed_since_upload = true;
         }
     }
 
@@ -409,6 +437,30 @@ impl Texture {
         }
     }
 
+    fn update_from_vec2_f32(&mut self, width: i32, height: i32, data: &Vec<(f32, f32)>) {
+        unsafe {
+            gl::BindTexture(gl::TEXTURE_2D, self.texture);
+
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
+
+            // could be a problem with the internal format here
+            gl::TexImage2D(
+                gl::TEXTURE_2D,
+                0,
+                gl::RG as i32,
+                width,
+                height,
+                0,
+                gl::RG,
+                gl::FLOAT,
+                std::mem::transmute(&data.as_slice()[0]),
+            );
+        }
+    }
+
     fn from_vec4_u8(width: i32, height: i32, data: &Vec<(u8, u8, u8, u8)>) -> Self {
         unsafe {
             let mut texture = 0;
@@ -438,6 +490,29 @@ impl Texture {
             }
 
             Self { texture }
+        }
+    }
+
+    fn update_from_vec4_u8(&mut self, width: i32, height: i32, data: &Vec<(u8, u8, u8, u8)>) {
+        unsafe {
+            gl::BindTexture(gl::TEXTURE_2D, self.texture);
+
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
+
+            gl::TexImage2D(
+                gl::TEXTURE_2D,
+                0,
+                gl::RGBA as i32,
+                width,
+                height,
+                0,
+                gl::RGBA,
+                gl::UNSIGNED_BYTE,
+                std::mem::transmute(&data.as_slice()[0]),
+            );
         }
     }
 

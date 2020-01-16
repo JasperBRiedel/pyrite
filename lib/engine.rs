@@ -135,11 +135,7 @@ impl Engine {
             }
         }
 
-        self.graphics_context.as_ref().unwrap().present_frame();
-
-        // give the cpu a break, should probably calculate this
-        // value in the future to avoid a spiral of death with the time keeping
-        thread::sleep(Duration::from_millis(5));
+        self.graphics_context.as_mut().unwrap().present_frame();
 
         if self.platform.close_requested {
             self.state = EngineState::Exiting;
