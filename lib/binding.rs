@@ -240,6 +240,7 @@ fn pyobject_into_configuration(config: PyObject) -> Config {
 
     let window_width = extract_or!(py, config, "window_width", u32, 800);
     let window_height = extract_or!(py, config, "window_height", u32, 600);
+    let window_resizable = extract_or!(py, config, "window_resizable", bool, false);
     let viewport_width = extract_or!(py, config, "viewport_width", f32, 10.);
     let viewport_height = extract_or!(py, config, "viewport_height", f32, 10.);
 
@@ -258,6 +259,7 @@ fn pyobject_into_configuration(config: PyObject) -> Config {
         engine_mode,
         window_width,
         window_height,
+        window_resizable,
         viewport_width,
         viewport_height,
         blend_mode,

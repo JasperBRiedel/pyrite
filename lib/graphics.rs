@@ -36,7 +36,7 @@ impl Context {
 
         let window_builder = WindowBuilder::new()
             .with_title(&config.application_name)
-            .with_resizable(true) // need to add this to the engine configuration
+            .with_resizable(config.window_resizable)
             .with_inner_size(window_size);
 
         let windowed_context = unsafe {

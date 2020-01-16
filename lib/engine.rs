@@ -44,6 +44,7 @@ pub struct Config {
     pub engine_mode: EngineMode,
     pub window_width: u32,
     pub window_height: u32,
+    pub window_resizable: bool,
     pub viewport_width: f32,
     pub viewport_height: f32,
     pub blend_mode: BlendMode,
