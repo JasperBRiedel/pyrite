@@ -42,6 +42,8 @@ pub fn load_bindings(m: &PyModule) {
     bind!(m, button_down);
     bind!(m, poll_events);
     bind!(m, camera);
+    bind!(m, tile);
+    bind!(m, clear);
 }
 
 pub fn destroy_engine() {
@@ -107,6 +109,33 @@ fn mouse_position() -> (i64, i64) {
 #[pyfunction]
 fn camera(viewport_width: f32, viewport_height: f32) {
     engine!().set_camera(viewport_width, viewport_height)
+}
+
+/// tile(name, x, y)
+/// tile(name, x, y, r, g, b)
+/// tile(name, x, y, r, g, b, flip_x, flip_y)
+/// --
+/// Add a tile to the scene
+#[pyfunction]
+fn tile(
+    name: String,
+    x: i32,
+    y: i32,
+    r: Option<u8>,
+    g: Option<u8>,
+    b: Option<u8>,
+    flip_x: Option<bool>,
+    flip_y: Option<bool>,
+) {
+    engine!().set_tile(name, x, y, r, g, b, flip_x, flip_y);
+}
+
+/// clear()
+/// --
+/// Clear the scene of all tiles
+#[pyfunction]
+fn clear() {
+    engine!().clear();
 }
 
 /// button_down(button) -> Boolean

@@ -63,7 +63,7 @@ impl Context {
             viewport_height: config.viewport_width,
         };
 
-        let scene = Scene::new(camera.viewport_width as i32, camera.viewport_height as i32);
+        let scene = Scene::new();
 
         let quad = Quad::new();
 
@@ -142,9 +142,6 @@ impl Context {
     }
 
     pub fn set_camera(&mut self, camera: Camera) {
-        self.scene
-            .resize(camera.viewport_width as i32, camera.viewport_height as i32);
-
         self.camera = dbg!(camera);
     }
 
@@ -203,9 +200,6 @@ impl Context {
 }
 
 struct Scene {
-    width: i32,
-    height: i32,
-
     tiles: Vec<(f32, f32)>,
     tiles_modifiers: Vec<(u8, u8, u8, u8)>,
 
@@ -213,44 +207,56 @@ struct Scene {
     tiles_modifiers_texture: Texture,
 
     data_changed_since_upload: bool,
+
+    data_changed_since_clear: bool,
 }
 
 impl Scene {
-    fn new(width: i32, height: i32) -> Self {
-        let tiles = (0..width * height).map(|_| (0.0, 0.0)).collect();
-        let tiles_modifiers = (0..width * height).map(|_| (255, 255, 255, 0)).collect();
+    const SCENE_MAX_SIZE: (i32, i32) = (1024, 1024);
+    const SCENE_TILE_COUNT: i32 = Self::SCENE_MAX_SIZE.0 * Self::SCENE_MAX_SIZE.1;
+
+    fn new() -> Self {
+        let tiles = (0..Self::SCENE_TILE_COUNT).map(|_| (0.0, 0.0)).collect();
+        let tiles_modifiers = (0..Self::SCENE_TILE_COUNT)
+            .map(|_| (255, 255, 255, 0))
+            .collect();
 
         // create scene textures and upload scene data
-        let tiles_texture = Texture::from_vec2_f32(width, height, &tiles);
-        let tiles_modifiers_texture = Texture::from_vec4_u8(width, height, &tiles_modifiers);
+        let tiles_texture =
+            Texture::from_vec2_f32(Self::SCENE_MAX_SIZE.0, Self::SCENE_MAX_SIZE.1, &tiles);
+
+        let tiles_modifiers_texture = Texture::from_vec4_u8(
+            Self::SCENE_MAX_SIZE.0,
+            Self::SCENE_MAX_SIZE.1,
+            &tiles_modifiers,
+        );
 
         let data_changed_since_upload = false;
+        let data_changed_since_clear = false;
 
         Self {
-            width,
-            height,
             tiles,
             tiles_modifiers,
             tiles_texture,
             tiles_modifiers_texture,
             data_changed_since_upload,
+            data_changed_since_clear,
         }
     }
 
-    fn resize(&mut self, width: i32, height: i32) {
-        self.tiles = (0..width * height).map(|_| (0.0, 0.0)).collect();
-        self.tiles_modifiers = (0..width * height).map(|_| (255, 255, 255, 0)).collect();
-        self.data_changed_since_upload = true;
-    }
-
     fn upload(&mut self) {
+        todo!();
+        // need to only upload tiles that are in the viewport
         if self.data_changed_since_upload {
-            self.tiles_texture
-                .update_from_vec2_f32(self.width, self.height, &self.tiles);
+            self.tiles_texture.update_from_vec2_f32(
+                Self::SCENE_MAX_SIZE.0,
+                Self::SCENE_MAX_SIZE.1,
+                &self.tiles,
+            );
 
             self.tiles_modifiers_texture.update_from_vec4_u8(
-                self.width,
-                self.height,
+                Self::SCENE_MAX_SIZE.0,
+                Self::SCENE_MAX_SIZE.1,
                 &self.tiles_modifiers,
             );
         }
@@ -275,12 +281,13 @@ impl Scene {
             return;
         };
 
-        let index = (y * self.width + x) as usize;
+        let index = (y * Self::SCENE_MAX_SIZE.0 + x) as usize;
 
-        if let Some(tile) = dbg!(self.tiles.get_mut(index)) {
+        if let Some(tile) = self.tiles.get_mut(index) {
             *tile = tile_texture_location;
 
             self.data_changed_since_upload = true;
+            self.data_changed_since_clear = true;
         }
 
         if let Some(modifiers) = self.tiles_modifiers.get_mut(index) {
@@ -294,16 +301,24 @@ impl Scene {
             *modifiers = (r, g, b, flip);
 
             self.data_changed_since_upload = true;
+            self.data_changed_since_clear = true;
         }
     }
 
     fn clear(&mut self) {
-        for (tile, modifiers) in self.tiles.iter_mut().zip(self.tiles_modifiers.iter_mut()) {
-            // tile texture x and y
-            *tile = (0.0, 0.0);
-            // tile modifiers r, g, b, flip
-            *modifiers = (255, 255, 255, 0);
-        }
+        todo!();
+        // this is too inefficient
+        // if self.data_changed_since_clear {
+        //     for (tile, modifiers) in self.tiles.iter_mut().zip(self.tiles_modifiers.iter_mut()) {
+        //         // tile texture x and y
+        //         *tile = (0.0, 0.0);
+        //         // tile modifiers r, g, b, flip
+        //         *modifiers = (255, 255, 255, 0);
+        //     }
+
+        //     self.data_changed_since_clear = false;
+        //     self.data_changed_since_upload = true;
+        // }
     }
 }
 

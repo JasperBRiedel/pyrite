@@ -214,6 +214,36 @@ impl Engine {
     }
 
     // API Function
+    pub fn set_tile(
+        &mut self,
+        name: String,
+        x: i32,
+        y: i32,
+        r: Option<u8>,
+        g: Option<u8>,
+        b: Option<u8>,
+        flip_x: Option<bool>,
+        flip_y: Option<bool>,
+    ) {
+        if let Some(context) = self.graphics_context.as_mut() {
+            let r = r.unwrap_or(255);
+            let g = g.unwrap_or(255);
+            let b = b.unwrap_or(255);
+            let flip_x = flip_x.unwrap_or(false);
+            let flip_y = flip_y.unwrap_or(false);
+
+            context.set_tile(&name, x, y, r, g, b, flip_x, flip_y);
+        }
+    }
+
+    // API Function
+    pub fn clear(&mut self) {
+        if let Some(context) = self.graphics_context.as_mut() {
+            context.clear_tiles();
+        }
+    }
+
+    // API Function
     pub fn button_down(&mut self, button: String) -> bool {
         self.platform.button_down(button)
     }

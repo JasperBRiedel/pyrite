@@ -12,9 +12,6 @@ config = {
     # "server" starts the engine in headless mode ideal for creating a multi-player server
     "engine_mode": "client",
 
-    # The grid size in pixels, this should be the size of the smallest tile
-    "base_grid_size": 20,
-
     # Determines the initial window size in pixels
     "window_width": 800,
     "window_height": 600,
