@@ -532,11 +532,10 @@ impl Texture {
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
 
-            // could be a problem with the internal format here
             gl::TexImage2D(
                 gl::TEXTURE_2D,
                 0,
-                gl::RG as i32,
+                gl::RG32F as i32,
                 width,
                 height,
                 0,
@@ -562,11 +561,10 @@ impl Texture {
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
 
-            // could be a problem with the internal format here
             gl::TexImage2D(
                 gl::TEXTURE_2D,
                 0,
-                gl::RG as i32,
+                gl::RG32F as i32,
                 width,
                 height,
                 0,
