@@ -12,8 +12,7 @@ use glutin::platform::unix::EventLoopExtUnix;
 use std::collections::{HashMap, VecDeque};
 
 pub struct Platform {
-    pub events: EventLoop<()>,
-    platform_event_queue: VecDeque<Event<'static, ()>>,
+    pub events: Option<EventLoop<()>>,
     pub hidpi_scale_factor: f64,
     button_states: HashMap<String, ButtonState>,
     logical_mouse_position: (i32, i32),
@@ -35,17 +34,14 @@ fn new_platform_eventloop() -> EventLoop<()> {
 impl Platform {
     pub fn new() -> Self {
         // try and create an x11 event loop first, then fall back to glutins defaults.
-        let events = new_platform_eventloop();
+        let events = Some(new_platform_eventloop());
 
         let button_states = HashMap::new();
 
         let input_event_queue = VecDeque::new();
 
-        let platform_event_queue = VecDeque::new();
-
         Self {
             events,
-            platform_event_queue,
             hidpi_scale_factor: 1.,
             button_states,
             logical_mouse_position: (0, 0),
@@ -57,27 +53,16 @@ impl Platform {
 
     pub fn clean_up(&mut self) {}
 
-    fn queue_platform_events(&mut self) {
-        let Self {
-            events,
-            platform_event_queue,
-            ..
-        } = self;
-
-        events.run_return(|e, _, control_flow| {
-            *control_flow = ControlFlow::Exit;
-            if let Some(static_event) = e.to_static() {
-                platform_event_queue.push_back(static_event);
-            }
-        });
-    }
-
     pub fn service(&mut self, graphics_context: &mut Option<graphics::Context>) {
-        // load platform events into the queue
-        self.queue_platform_events();
+        // We need to remove the events loop from self as we pass self into a closure passed to
+        // run_return and this causes borrow checker issues. This isn't optimal, but it's better
+        // than buffering all the events first like in commit d88f27c. It also allows as to react
+        // to events immediately, so we can do things like rendering new frames as the window is
+        // being resized.
+        let mut events = self.events.take().expect("lost the platform event loop");
 
-        // process events
-        for event in self.platform_event_queue.drain(0..) {
+        events.run_return(|event, _, control_flow| {
+            *control_flow = ControlFlow::Exit;
             match event {
                 Event::WindowEvent { event, .. } => match event {
                     WindowEvent::Resized(physical_size) => {
@@ -218,7 +203,9 @@ impl Platform {
                 },
                 _ => (),
             }
-        }
+        });
+
+        self.events = Some(events);
     }
 
     pub fn mouse_position(

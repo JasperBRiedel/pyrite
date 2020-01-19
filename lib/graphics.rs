@@ -39,7 +39,13 @@ impl Context {
                 .with_gl(GlRequest::Specific(Api::OpenGl, (3, 3)))
                 .with_gl_profile(GlProfile::Core)
                 .with_vsync(true)
-                .build_windowed(window_builder, &platform.events)
+                .build_windowed(
+                    window_builder,
+                    &platform
+                        .events
+                        .as_ref()
+                        .expect("failed to build window as platform didn't provide an events loop"),
+                )
                 .expect("graphics context initialisation failed")
                 .make_current()
                 .expect("failed to access graphics context")
