@@ -22,6 +22,7 @@ pub struct Context {
     scene: Scene,
     quad: Quad,
     shader: Shader,
+    pending_render: bool,
 }
 
 impl Context {
@@ -63,6 +64,8 @@ impl Context {
             include_str!("tile_render.frag"),
         );
 
+        let pending_render = true;
+
         Context {
             windowed_context,
             renderer_started,
@@ -72,6 +75,7 @@ impl Context {
             scene,
             quad,
             shader,
+            pending_render,
         }
     }
 
@@ -116,23 +120,41 @@ impl Context {
         flip_y: bool,
     ) {
         if let Some(tileset) = &self.tileset {
-            self.scene
-                .set_tile(tileset, tile_name, x, y, r, g, b, flip_x, flip_y);
-        }
-    }
+            // only allow tiles within the viewport to be changed
+            if self.viewport.contains(x, y) {
+                let scene_changed = self
+                    .scene
+                    .set_tile(tileset, tile_name, x, y, r, g, b, flip_x, flip_y);
 
-    pub fn clear_tiles(&mut self) {
-        self.scene.clear();
+                // Flag that the scene was changed. Because we only render and swap buffers when
+                // there's something new to show.
+                self.pending_render = self.pending_render || scene_changed;
+            }
+        }
     }
 
     pub fn resize_framebuffer(&mut self, width: i32, height: i32) {
         unsafe {
             self.framebuffer_size = (width as f32, height as f32);
             gl::Viewport(0, 0, width, height);
+
+            // Render the scene at the new resolution
+            self.pending_render = true;
         }
     }
 
-    pub fn present_frame(&mut self) {
+    /// Render the scene and present that frame to the screen.
+    ///
+    /// Only renders if it has been flagged that the scene content changed.
+    ///
+    /// Returns true if a new frame was rendered and presented.
+    pub fn present_frame(&mut self) -> bool {
+        // Only render and swap buffers if there's actually something new to show
+        if !self.pending_render {
+            return false;
+        }
+        self.pending_render = false;
+
         let seconds_elapsed = self.renderer_started.elapsed().as_secs_f32();
 
         if let Some(tileset) = &self.tileset {
@@ -166,6 +188,9 @@ impl Context {
         }
 
         self.windowed_context.swap_buffers().unwrap();
+
+        // We rendered a frame, so return true as per the doc comment.
+        return true;
     }
 
     fn clear_frame(&self) {
@@ -194,7 +219,7 @@ impl Viewport {
         }
     }
 
-    pub fn in_view(&self, x: i32, y: i32) -> bool {
+    pub fn contains(&self, x: i32, y: i32) -> bool {
         x >= 0 && x <= self.width && y >= 0 && y <= self.height
     }
 
@@ -214,25 +239,27 @@ impl Viewport {
 
 struct Scene {
     tiles: Vec<(f32, f32)>,
+    tiles_upload_buffer: Vec<(f32, f32)>,
     tiles_modifiers: Vec<(u8, u8, u8, u8)>,
+    tiles_modifiers_upload_buffer: Vec<(u8, u8, u8, u8)>,
 
     tiles_texture: Texture,
     tiles_modifiers_texture: Texture,
 
-    data_changed_since_upload: bool,
-
-    data_changed_since_clear: bool,
+    upload_pending: bool,
+    upload_region_top_left: (u32, u32),
+    upload_region_bottom_right: (u32, u32),
 }
 
 impl Scene {
     const SCENE_MAX_SIZE: (i32, i32) = (1024, 1024);
-    const SCENE_TILE_COUNT: i32 = Self::SCENE_MAX_SIZE.0 * Self::SCENE_MAX_SIZE.1;
+    const SCENE_TILE_COUNT: usize = (Self::SCENE_MAX_SIZE.0 * Self::SCENE_MAX_SIZE.1) as usize;
 
     fn new() -> Self {
-        let tiles = (0..Self::SCENE_TILE_COUNT).map(|_| (0.0, 0.0)).collect();
-        let tiles_modifiers = (0..Self::SCENE_TILE_COUNT)
-            .map(|_| (255, 255, 255, 0))
-            .collect();
+        let tiles = vec![(0.0, 0.0); Self::SCENE_TILE_COUNT];
+        let tiles_upload_buffer = vec![(0.0, 0.0); Self::SCENE_TILE_COUNT];
+        let tiles_modifiers = vec![(255, 255, 255, 0); Self::SCENE_TILE_COUNT];
+        let tiles_modifiers_upload_buffer = vec![(255, 255, 255, 0); Self::SCENE_TILE_COUNT];
 
         // create scene textures and upload scene data
         let tiles_texture =
@@ -244,36 +271,87 @@ impl Scene {
             &tiles_modifiers,
         );
 
-        let data_changed_since_upload = false;
-        let data_changed_since_clear = false;
+        let upload_pending = false;
+        let upload_region_top_left = (1024, 1024);
+        let upload_region_bottom_right = (0, 0);
 
         Self {
             tiles,
+            tiles_upload_buffer,
             tiles_modifiers,
+            tiles_modifiers_upload_buffer,
             tiles_texture,
             tiles_modifiers_texture,
-            data_changed_since_upload,
-            data_changed_since_clear,
+            upload_pending,
+            upload_region_top_left,
+            upload_region_bottom_right,
         }
     }
 
     fn upload(&mut self) {
-        // need to only upload tiles that are in the viewport
-        if self.data_changed_since_upload {
-            self.tiles_texture.update_from_vec2_f32(
-                Self::SCENE_MAX_SIZE.0,
-                Self::SCENE_MAX_SIZE.1,
-                &self.tiles,
+        if self.upload_pending {
+            // calculate update region x and y offset, and width and height
+            let update_region_xy_wh = self.get_update_region();
+
+            self.copy_update_region_to_upload_buffers(update_region_xy_wh);
+
+            // preform partial update
+            self.tiles_texture.partial_update_from_vec2_f32(
+                update_region_xy_wh.0,
+                update_region_xy_wh.1,
+                update_region_xy_wh.2,
+                update_region_xy_wh.3,
+                &self.tiles_upload_buffer,
             );
 
-            self.tiles_modifiers_texture.update_from_vec4_u8(
-                Self::SCENE_MAX_SIZE.0,
-                Self::SCENE_MAX_SIZE.1,
-                &self.tiles_modifiers,
+            self.tiles_modifiers_texture.partial_update_from_vec4_u8(
+                update_region_xy_wh.0,
+                update_region_xy_wh.1,
+                update_region_xy_wh.2,
+                update_region_xy_wh.3,
+                &self.tiles_modifiers_upload_buffer,
             );
+
+            // reset update region tracking
+            self.upload_pending = false;
+            self.upload_region_top_left = (1024, 1024);
+            self.upload_region_bottom_right = (0, 0);
         }
     }
 
+    fn get_update_region(&self) -> (i32, i32, i32, i32) {
+        (
+            self.upload_region_top_left.0 as i32,
+            self.upload_region_top_left.1 as i32,
+            (self.upload_region_bottom_right.0 - self.upload_region_top_left.0 + 1) as i32,
+            (self.upload_region_bottom_right.1 - self.upload_region_top_left.1 + 1) as i32,
+        )
+    }
+
+    fn copy_update_region_to_upload_buffers(&mut self, region: (i32, i32, i32, i32)) {
+        let region = (
+            region.0 as u32,
+            region.1 as u32,
+            region.2 as u32,
+            region.3 as u32,
+        );
+
+        for local_x in 0..region.2 {
+            for local_y in 0..region.3 {
+                let global_x = local_x + region.0;
+                let global_y = local_y + region.1;
+
+                let local_index = (local_y * region.2 + local_x);
+                let global_index = (global_y * Self::SCENE_MAX_SIZE.0 as u32 + global_x);
+
+                self.tiles_upload_buffer[local_index as usize] = self.tiles[global_index as usize];
+                self.tiles_modifiers_upload_buffer[local_index as usize] =
+                    self.tiles_modifiers[global_index as usize];
+            }
+        }
+    }
+
+    /// Returns true if the scene was actually modified
     fn set_tile(
         &mut self,
         tileset: &Tileset,
@@ -285,52 +363,59 @@ impl Scene {
         b: u8,
         flip_x: bool,
         flip_y: bool,
-    ) {
-        let tile_texture_location = if let Some(location) = tileset.get_tile_texture_location(name)
-        {
-            location
-        } else {
-            return;
+    ) -> bool {
+        // we don't care about negative locations, but it makes easier for other systems to
+        // interact when we accept a signed number, so we convert here.
+        let x = x as u32;
+        let y = y as u32;
+
+        // find liner index
+        let index = (y * Self::SCENE_MAX_SIZE.0 as u32 + x) as usize;
+
+        // determine flip value
+        let flip = match (flip_x, flip_y) {
+            (false, false) => 0,  // flip none = 0
+            (true, false) => 51,  // flip x = 0.2
+            (false, true) => 102, // flip y = 0.4
+            (true, true) => 153,  // flip x and y = .6
         };
 
-        let index = (y * Self::SCENE_MAX_SIZE.0 + x) as usize;
+        // if all the required resources are available, we preform a tile update
+        match (
+            tileset.get_tile_texture_location(name),
+            self.tiles.get_mut(index),
+            self.tiles_modifiers.get_mut(index),
+        ) {
+            (Some(tile_texture_location), Some(tile), Some(modifiers)) => {
+                let pending_modifiers = (r, g, b, flip);
 
-        if let Some(tile) = self.tiles.get_mut(index) {
-            *tile = tile_texture_location;
+                // we should update the data only if the new data is different
+                let should_update_data =
+                    *tile != tile_texture_location || *modifiers != pending_modifiers;
 
-            self.data_changed_since_upload = true;
-            self.data_changed_since_clear = true;
-        }
+                if should_update_data {
+                    *tile = tile_texture_location;
+                    *modifiers = pending_modifiers;
 
-        if let Some(modifiers) = self.tiles_modifiers.get_mut(index) {
-            let flip = match (flip_x, flip_y) {
-                (false, false) => 0,  // flip none = 0
-                (true, false) => 51,  // flip x = 0.2
-                (false, true) => 102, // flip y = 0.4
-                (true, true) => 153,  // flip x and y = .6
-            };
+                    self.upload_region_top_left = (
+                        self.upload_region_top_left.0.min(x),
+                        self.upload_region_top_left.1.min(y),
+                    );
 
-            *modifiers = (r, g, b, flip);
+                    self.upload_region_bottom_right = (
+                        self.upload_region_bottom_right.0.max(x),
+                        self.upload_region_bottom_right.1.max(y),
+                    );
 
-            self.data_changed_since_upload = true;
-            self.data_changed_since_clear = true;
-        }
-    }
+                    self.upload_pending = true;
 
-    fn clear(&mut self) {
-        todo!();
-        // this is too inefficient
-        // if self.data_changed_since_clear {
-        //     for (tile, modifiers) in self.tiles.iter_mut().zip(self.tiles_modifiers.iter_mut()) {
-        //         // tile texture x and y
-        //         *tile = (0.0, 0.0);
-        //         // tile modifiers r, g, b, flip
-        //         *modifiers = (255, 255, 255, 0);
-        //     }
+                    return true;
+                }
+            }
+            _ => (),
+        };
 
-        //     self.data_changed_since_clear = false;
-        //     self.data_changed_since_upload = true;
-        // }
+        return false;
     }
 }
 
@@ -431,7 +516,7 @@ impl Texture {
         }
     }
 
-    fn from_vec2_f32(width: i32, height: i32, data: &Vec<(f32, f32)>) -> Self {
+    fn from_vec2_f32(width: i32, height: i32, data: &[(f32, f32)]) -> Self {
         unsafe {
             let mut texture = 0;
             gl::GenTextures(1, &mut texture);
@@ -453,7 +538,7 @@ impl Texture {
                 0,
                 gl::RG,
                 gl::FLOAT,
-                std::mem::transmute(&data.as_slice()[0]),
+                std::mem::transmute(&data[0]),
             );
 
             if texture <= 0 {
@@ -464,7 +549,7 @@ impl Texture {
         }
     }
 
-    fn update_from_vec2_f32(&mut self, width: i32, height: i32, data: &Vec<(f32, f32)>) {
+    fn update_from_vec2_f32(&mut self, width: i32, height: i32, data: &[(f32, f32)]) {
         unsafe {
             gl::BindTexture(gl::TEXTURE_2D, self.texture);
 
@@ -483,12 +568,42 @@ impl Texture {
                 0,
                 gl::RG,
                 gl::FLOAT,
-                std::mem::transmute(&data.as_slice()[0]),
+                std::mem::transmute(&data[0]),
             );
         }
     }
 
-    fn from_vec4_u8(width: i32, height: i32, data: &Vec<(u8, u8, u8, u8)>) -> Self {
+    fn partial_update_from_vec2_f32(
+        &mut self,
+        x: i32,
+        y: i32,
+        width: i32,
+        height: i32,
+        data: &[(f32, f32)],
+    ) {
+        unsafe {
+            gl::BindTexture(gl::TEXTURE_2D, self.texture);
+
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
+
+            gl::TexSubImage2D(
+                gl::TEXTURE_2D,
+                0,
+                x,
+                y,
+                width,
+                height,
+                gl::RG,
+                gl::FLOAT,
+                std::mem::transmute(&data[0]),
+            );
+        }
+    }
+
+    fn from_vec4_u8(width: i32, height: i32, data: &[(u8, u8, u8, u8)]) -> Self {
         unsafe {
             let mut texture = 0;
             gl::GenTextures(1, &mut texture);
@@ -509,7 +624,7 @@ impl Texture {
                 0,
                 gl::RGBA,
                 gl::UNSIGNED_BYTE,
-                std::mem::transmute(&data.as_slice()[0]),
+                std::mem::transmute(&data[0]),
             );
 
             if texture <= 0 {
@@ -520,7 +635,7 @@ impl Texture {
         }
     }
 
-    fn update_from_vec4_u8(&mut self, width: i32, height: i32, data: &Vec<(u8, u8, u8, u8)>) {
+    fn update_from_vec4_u8(&mut self, width: i32, height: i32, data: &[(u8, u8, u8, u8)]) {
         unsafe {
             gl::BindTexture(gl::TEXTURE_2D, self.texture);
 
@@ -538,7 +653,37 @@ impl Texture {
                 0,
                 gl::RGBA,
                 gl::UNSIGNED_BYTE,
-                std::mem::transmute(&data.as_slice()[0]),
+                std::mem::transmute(&data[0]),
+            );
+        }
+    }
+
+    fn partial_update_from_vec4_u8(
+        &mut self,
+        x: i32,
+        y: i32,
+        width: i32,
+        height: i32,
+        data: &[(u8, u8, u8, u8)],
+    ) {
+        unsafe {
+            gl::BindTexture(gl::TEXTURE_2D, self.texture);
+
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
+
+            gl::TexSubImage2D(
+                gl::TEXTURE_2D,
+                0,
+                x,
+                y,
+                width,
+                height,
+                gl::RGBA,
+                gl::UNSIGNED_BYTE,
+                std::mem::transmute(&data[0]),
             );
         }
     }

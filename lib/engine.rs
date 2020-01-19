@@ -136,7 +136,14 @@ impl Engine {
             }
         }
 
-        self.graphics_context.as_mut().unwrap().present_frame();
+        let frame_presented = self.graphics_context.as_mut().unwrap().present_frame();
+
+        // The renderer optimises and will sometimes choose not to render or swap buffers, in this
+        // case we will sleep the program for a moment if v-sync is enabled to give the cpu a
+        // break.
+        if !frame_presented {
+            thread::sleep(Duration::from_millis(8));
+        }
 
         if self.platform.close_requested {
             self.state = EngineState::Exiting;
@@ -229,13 +236,6 @@ impl Engine {
             let flip_y = flip_y.unwrap_or(false);
 
             context.set_tile(&name, x, y, r, g, b, flip_x, flip_y);
-        }
-    }
-
-    // API Function
-    pub fn clear(&mut self) {
-        if let Some(context) = self.graphics_context.as_mut() {
-            context.clear_tiles();
         }
     }
 
