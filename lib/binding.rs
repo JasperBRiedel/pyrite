@@ -240,7 +240,7 @@ fn pyobject_into_configuration(config: PyObject) -> Config {
     let blend_mode = BlendMode::from_string(&blend_mode_string);
 
     let tileset_width = extract_or!(py, config, "tileset_width", u32, 3);
-    let tileset_height = extract_or!(py, config, "tileset_width", u32, 3);
+    let tileset_height = extract_or!(py, config, "tileset_height", u32, 3);
     let tileset_path = extract_or!(py, config, "tileset_path", String, "default.png".to_owned());
     let tile_names = extract_or!(py, config, "tile_names", Vec<String>, Vec::new());
 

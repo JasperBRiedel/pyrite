@@ -196,6 +196,9 @@ impl Context {
             self.shader
                 .set_uniform_2f("viewport_size", self.viewport.get_f32());
 
+            self.shader
+                .set_uniform_2f("tileset_size", tileset.get_dimensions_f32());
+
             // set tileset texture to texture unit 0
             self.shader.set_uniform_1i("tileset", 0);
             self.shader.set_uniform_1i("scene_tiles", 1);
@@ -399,7 +402,7 @@ impl Scene {
 
         // if all the required resources are available, we preform a tile update
         match (
-            tileset.get_tile_texture_location(name),
+            tileset.get_tile_location(name),
             self.tiles.get_mut(index),
             self.tiles_modifiers.get_mut(index),
         ) {
@@ -438,17 +441,17 @@ impl Scene {
 
 struct Tileset {
     pub texture: Texture,
+    dimensions: (u32, u32),
 }
 
 impl Tileset {
-    fn new(
-        image: &image::DynamicImage,
-        tileset_dimensions: (u32, u32),
-        tile_names: Vec<String>,
-    ) -> Self {
+    fn new(image: &image::DynamicImage, dimensions: (u32, u32), tile_names: Vec<String>) -> Self {
         let texture = Texture::from_image(image);
 
-        Self { texture }
+        Self {
+            texture,
+            dimensions,
+        }
     }
 
     fn load(
@@ -460,8 +463,12 @@ impl Tileset {
         unimplemented!()
     }
 
-    fn get_tile_texture_location(&self, tile_name: &str) -> Option<(f32, f32)> {
-        Some((0.0, 0.0))
+    fn get_dimensions_f32(&self) -> (f32, f32) {
+        (self.dimensions.0 as f32, self.dimensions.1 as f32)
+    }
+
+    fn get_tile_location(&self, tile_name: &str) -> Option<(f32, f32)> {
+        Some((1.0, 0.0))
     }
 }
 
