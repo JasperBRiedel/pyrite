@@ -7,6 +7,7 @@ use glutin::{
     dpi::LogicalSize, event_loop::EventLoop, window::WindowBuilder, Api, ContextBuilder, GlProfile,
     GlRequest, PossiblyCurrent, WindowedContext,
 };
+use std::collections::HashMap;
 use std::ffi;
 use std::mem;
 use std::ptr;
@@ -96,22 +97,11 @@ impl Context {
             .expect("failed to load tileset image");
         let tileset_image = image::load_from_memory(&image_bytes).expect("failed to load tileset");
 
-        match &mut self.tileset {
-            Some(existing_tileset) => {
-                existing_tileset.load(
-                    &tileset_image,
-                    (config.tileset_width, config.tileset_height),
-                    config.tile_names.clone(),
-                );
-            }
-            None => {
-                self.tileset = Some(Tileset::new(
-                    &tileset_image,
-                    (config.tileset_width, config.tileset_height),
-                    config.tile_names.clone(),
-                ));
-            }
-        }
+        self.tileset = Some(Tileset::new(
+            &tileset_image,
+            (config.tileset_width, config.tileset_height),
+            config.tile_names.clone(),
+        ));
     }
 
     pub fn set_tile(
@@ -218,10 +208,6 @@ impl Context {
             gl::ClearColor(1., 1., 1., 1.);
             gl::Clear(gl::COLOR_BUFFER_BIT);
         }
-    }
-
-    pub fn clean_up(self) {
-        self.quad.clean_up();
     }
 }
 
@@ -442,25 +428,19 @@ impl Scene {
 struct Tileset {
     pub texture: Texture,
     dimensions: (u32, u32),
+    names_to_positions: HashMap<String, (f32, f32)>,
 }
 
 impl Tileset {
     fn new(image: &image::DynamicImage, dimensions: (u32, u32), tile_names: Vec<String>) -> Self {
         let texture = Texture::from_image(image);
+        let names_to_positions = HashMap::new();
 
         Self {
             texture,
             dimensions,
+            names_to_positions,
         }
-    }
-
-    fn load(
-        &mut self,
-        image: &image::DynamicImage,
-        tileset_dimensions: (u32, u32),
-        tile_names: Vec<String>,
-    ) {
-        unimplemented!()
     }
 
     fn get_dimensions_f32(&self) -> (f32, f32) {
@@ -468,7 +448,7 @@ impl Tileset {
     }
 
     fn get_tile_location(&self, tile_name: &str) -> Option<(f32, f32)> {
-        Some((1.0, 0.0))
+        self.names_to_positions.get(tile_name).cloned()
     }
 }
 
@@ -719,6 +699,14 @@ impl Texture {
     }
 }
 
+impl Drop for Texture {
+    fn drop(&mut self) {
+        unsafe {
+            gl::DeleteTextures(1, &self.texture);
+        }
+    }
+}
+
 pub struct Shader {
     program: u32,
 }
@@ -839,6 +827,14 @@ impl Shader {
     }
 }
 
+impl Drop for Shader {
+    fn drop(&mut self) {
+        unsafe {
+            gl::DeleteShader(self.program);
+        }
+    }
+}
+
 pub struct Quad {
     vao: u32,
     vbo: u32,
@@ -909,8 +905,10 @@ impl Quad {
             gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, ptr::null());
         }
     }
+}
 
-    fn clean_up(self) {
+impl Drop for Quad {
+    fn drop(&mut self) {
         unsafe {
             gl::DeleteVertexArrays(1, &self.vao);
             gl::DeleteBuffers(1, &self.vbo);
