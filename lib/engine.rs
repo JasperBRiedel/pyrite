@@ -202,7 +202,7 @@ impl Engine {
         if let Some(context) = &self.graphics_context {
             self.platform.mouse_position(
                 context.windowed_context.window().inner_size(),
-                context.viewport.clone(),
+                context.get_viewport().clone(),
             )
         } else {
             (0, 0)
@@ -212,7 +212,7 @@ impl Engine {
     // API Function
     pub fn set_viewport(&mut self, width: i32, height: i32) {
         if let Some(context) = &mut self.graphics_context {
-            context.viewport.set(width, height);
+            context.set_viewport(width, height);
         }
     }
 

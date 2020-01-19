@@ -18,7 +18,7 @@ pub struct Context {
     renderer_started: Instant,
     framebuffer_size: (f32, f32),
     tileset: Option<Tileset>,
-    pub viewport: Viewport,
+    viewport: Viewport,
     scene: Scene,
     quad: Quad,
     shader: Shader,
@@ -137,6 +137,17 @@ impl Context {
                 self.pending_render = self.pending_render || scene_changed;
             }
         }
+    }
+
+    pub fn set_viewport(&mut self, width: i32, height: i32) {
+        // we proxy the call to set the viewport so we can also flag that a new frame needs to be
+        // rendered.
+        self.viewport.set(width, height);
+        self.pending_render = true;
+    }
+
+    pub fn get_viewport(&self) -> &Viewport {
+        &self.viewport
     }
 
     pub fn resize_framebuffer(&mut self, width: i32, height: i32) {
