@@ -7,6 +7,8 @@ use glutin::{
     dpi::LogicalSize, event_loop::EventLoop, window::WindowBuilder, Api, ContextBuilder, GlProfile,
     GlRequest, PossiblyCurrent, WindowedContext,
 };
+use image::GenericImageView;
+use image::Pixel;
 use std::collections::HashMap;
 use std::ffi;
 use std::mem;
@@ -432,9 +434,50 @@ struct Tileset {
 }
 
 impl Tileset {
-    fn new(image: &image::DynamicImage, dimensions: (u32, u32), tile_names: Vec<String>) -> Self {
+    fn new(
+        image: &image::DynamicImage,
+        dimensions: (u32, u32),
+        mut tile_names: Vec<String>,
+    ) -> Self {
         let texture = Texture::from_image(image);
-        let names_to_positions = HashMap::new();
+        let tileset_image_dimensions = image.dimensions();
+        let tile_size = (
+            tileset_image_dimensions.0 / dimensions.0,
+            tileset_image_dimensions.1 / dimensions.1,
+        );
+        let mut names_to_positions = HashMap::new();
+
+        tile_names.reverse();
+
+        // iterate each tile
+        for tile_y in 0..dimensions.1 {
+            for tile_x in 0..dimensions.0 {
+                let mut tile_filled = false;
+                // iterate each pixel of each tile
+                'pixels: for tile_pixel_x in (0..tile_size.0).map(|x| x + tile_x * tile_size.0) {
+                    for tile_pixel_y in (0..tile_size.1).map(|y| y + tile_y * tile_size.1) {
+                        // check if pixel has colour
+                        if image
+                            .get_pixel(tile_pixel_x, tile_pixel_y)
+                            .channels()
+                            .into_iter()
+                            .fold(false, |has_color, pixel| *pixel > 0 || has_color)
+                        {
+                            tile_filled = true;
+                            break 'pixels;
+                        }
+                    }
+                }
+
+                if tile_filled {
+                    if let Some(tile_name) = tile_names.pop() {
+                        names_to_positions.insert(tile_name, (tile_x as f32, tile_y as f32));
+                    } else {
+                        println!("Tile name list has been exhausted, but another tile was found at ({}, {})",tile_x, tile_y);
+                    }
+                }
+            }
+        }
 
         Self {
             texture,
