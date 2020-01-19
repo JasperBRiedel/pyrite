@@ -71,6 +71,11 @@ impl Platform {
                                 physical_size.width as i32,
                                 physical_size.height as i32,
                             );
+
+                            // Render a new frame to the resized framebuffer.
+                            // the scene will be streched to fit, but this is better than having
+                            // large black regions of the window while resizing.
+                            context.present_frame();
                         }
                     }
                     WindowEvent::CloseRequested => {
