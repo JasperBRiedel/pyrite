@@ -250,6 +250,13 @@ impl Engine {
         self.platform.poll_events()
     }
 
+    // API Function
+    pub fn read_resource(&mut self, path: String) -> String {
+        self.resources
+            .read_to_string(&path)
+            .unwrap_or(String::new())
+    }
+
     fn initialise(&mut self) {
         // initialise renderer
         let mut graphics_context =

@@ -43,6 +43,7 @@ pub fn load_bindings(m: &PyModule) {
     bind!(m, poll_events);
     bind!(m, set_viewport);
     bind!(m, set_tile);
+    bind!(m, read_resource);
 }
 
 pub fn destroy_engine() {
@@ -147,6 +148,14 @@ fn poll_events() -> Vec<PyObject> {
         .into_iter()
         .map(|e| event_into_pyobject(e))
         .collect()
+}
+
+/// read_resource(path)
+/// --
+/// Read in the contents of a resource file
+#[pyfunction]
+fn read_resource(path: String) -> String {
+    engine!().read_resource(path)
 }
 
 fn event_into_pyobject(event: Event) -> PyObject {
