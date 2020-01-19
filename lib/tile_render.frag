@@ -18,13 +18,23 @@ void main()
     ivec2 tile_index = ivec2(global_tile_uv);
     vec2 tile_uv = global_tile_uv - tile_index;
 
+    vec4 modifiers = texelFetch(scene_tiles_modifiers, tile_index, 0).rgba;
+    float modifier_flip = modifiers.a;
+    vec4 modifier_color = vec4(modifiers.xyz, 1.0);
+
+    if ((modifier_flip > 0.1 && modifier_flip < 0.3) || modifier_flip > 0.5) {
+        tile_uv.x = 1.0 - tile_uv.x;
+    }
+
+    if ((modifier_flip > 0.3 && modifier_flip < 0.5) || modifier_flip > 0.5) {
+        tile_uv.y = 1.0 - tile_uv.y;
+    }
+
     vec2 tile_size = vec2(1.0) / tileset_size;
     vec2 tile_offset = texelFetch(scene_tiles, tile_index, 0).xy;
     vec2 tileset_uv = tile_size * tile_offset + tile_size * tile_uv;
-    vec4 tile_color = texture(tileset, tileset_uv);
 
-    vec4 modifiers = texelFetch(scene_tiles_modifiers, tile_index, 0).rgba;
-    vec4 modifier_color = vec4(modifiers.xyz, 1.0);
+    vec4 tile_color = texture(tileset, tileset_uv);
 
     FragColor = tile_color * modifier_color;
 }
