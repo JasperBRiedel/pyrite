@@ -13,18 +13,12 @@ use std::ptr;
 use std::str;
 use std::time::{Duration, Instant};
 
-#[derive(Clone, Debug)]
-pub struct Camera {
-    pub viewport_width: f32,
-    pub viewport_height: f32,
-}
-
 pub struct Context {
     pub windowed_context: WindowedContext<PossiblyCurrent>,
     renderer_started: Instant,
     framebuffer_size: (f32, f32),
     tileset: Option<Tileset>,
-    camera: Camera,
+    pub viewport: Viewport,
     scene: Scene,
     quad: Quad,
     shader: Shader,
@@ -58,10 +52,7 @@ impl Context {
 
         let tileset = None;
 
-        let camera = Camera {
-            viewport_width: config.viewport_height,
-            viewport_height: config.viewport_width,
-        };
+        let viewport = Viewport::new(config.viewport_width, config.viewport_height);
 
         let scene = Scene::new();
 
@@ -77,7 +68,7 @@ impl Context {
             renderer_started,
             framebuffer_size,
             tileset,
-            camera,
+            viewport,
             scene,
             quad,
             shader,
@@ -141,14 +132,6 @@ impl Context {
         }
     }
 
-    pub fn set_camera(&mut self, camera: Camera) {
-        self.camera = dbg!(camera);
-    }
-
-    pub fn get_camera(&self) -> &Camera {
-        &self.camera
-    }
-
     pub fn present_frame(&mut self) {
         let seconds_elapsed = self.renderer_started.elapsed().as_secs_f32();
 
@@ -171,10 +154,8 @@ impl Context {
             self.shader
                 .set_uniform_2f("framebuffer_size", self.framebuffer_size);
 
-            self.shader.set_uniform_2f(
-                "viewport_size",
-                (self.camera.viewport_width, self.camera.viewport_height),
-            );
+            self.shader
+                .set_uniform_2f("viewport_size", self.viewport.get_f32());
 
             // set tileset texture to texture unit 0
             self.shader.set_uniform_1i("tileset", 0);
@@ -196,6 +177,38 @@ impl Context {
 
     pub fn clean_up(self) {
         self.quad.clean_up();
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct Viewport {
+    width: i32,
+    height: i32,
+}
+
+impl Viewport {
+    pub fn new(width: i32, height: i32) -> Self {
+        Self {
+            width: width.min(1024),
+            height: height.min(1024),
+        }
+    }
+
+    pub fn in_view(&self, x: i32, y: i32) -> bool {
+        x >= 0 && x <= self.width && y >= 0 && y <= self.height
+    }
+
+    pub fn set(&mut self, width: i32, height: i32) {
+        self.width = width.min(1024);
+        self.height = height.min(1024);
+    }
+
+    pub fn get(&self) -> (i32, i32) {
+        (self.width, self.height)
+    }
+
+    pub fn get_f32(&self) -> (f32, f32) {
+        (self.width as f32, self.height as f32)
     }
 }
 
@@ -245,7 +258,6 @@ impl Scene {
     }
 
     fn upload(&mut self) {
-        todo!();
         // need to only upload tiles that are in the viewport
         if self.data_changed_since_upload {
             self.tiles_texture.update_from_vec2_f32(

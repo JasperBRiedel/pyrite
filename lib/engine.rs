@@ -45,8 +45,8 @@ pub struct Config {
     pub window_width: u32,
     pub window_height: u32,
     pub window_resizable: bool,
-    pub viewport_width: f32,
-    pub viewport_height: f32,
+    pub viewport_width: i32,
+    pub viewport_height: i32,
     pub blend_mode: BlendMode,
     pub tileset_width: u32,
     pub tileset_height: u32,
@@ -191,11 +191,11 @@ impl Engine {
     }
 
     // API Function
-    pub fn mouse_position(&mut self) -> (i64, i64) {
+    pub fn mouse_position(&mut self) -> (i32, i32) {
         if let Some(context) = &self.graphics_context {
             self.platform.mouse_position(
                 context.windowed_context.window().inner_size(),
-                context.get_camera().clone(),
+                context.viewport.clone(),
             )
         } else {
             (0, 0)
@@ -203,14 +203,9 @@ impl Engine {
     }
 
     // API Function
-    pub fn set_camera(&mut self, viewport_width: f32, viewport_height: f32) {
+    pub fn set_viewport(&mut self, width: i32, height: i32) {
         if let Some(context) = &mut self.graphics_context {
-            let camera = graphics::Camera {
-                viewport_width,
-                viewport_height,
-            };
-
-            context.set_camera(camera);
+            context.viewport.set(width, height);
         }
     }
 

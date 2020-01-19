@@ -16,6 +16,10 @@ config = {
     "window_width": 800,
     "window_height": 600,
 
+    # Determines the initial viewport size
+    "viewport_width": 20,
+    "viewport_height": 15,
+
     # Determines if the window can be freely resized by the user
     "window_resizable": True,
 

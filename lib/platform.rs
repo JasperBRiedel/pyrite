@@ -1,6 +1,6 @@
 use crate::engine;
 use crate::graphics;
-use crate::graphics::Camera;
+use crate::graphics::Viewport;
 use glutin::dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize};
 use glutin::event::{
     ElementState, Event, KeyboardInput, MouseButton, MouseScrollDelta, VirtualKeyCode, WindowEvent,
@@ -221,15 +221,21 @@ impl Platform {
         }
     }
 
-    pub fn mouse_position(&mut self, window_size: PhysicalSize<u32>, camera: Camera) -> (i64, i64) {
+    pub fn mouse_position(
+        &mut self,
+        window_size: PhysicalSize<u32>,
+        viewport: Viewport,
+    ) -> (i32, i32) {
         let normalised_mouse_position = (
-            self.logical_mouse_position.0 as f64 / window_size.width as f64,
-            self.logical_mouse_position.1 as f64 / window_size.height as f64,
+            self.logical_mouse_position.0 as f32 / window_size.width as f32,
+            self.logical_mouse_position.1 as f32 / window_size.height as f32,
         );
 
+        let (viewport_width, viewport_height) = viewport.get_f32();
+
         (
-            (normalised_mouse_position.0 * camera.viewport_width as f64) as i64,
-            (normalised_mouse_position.1 * camera.viewport_height as f64) as i64,
+            (normalised_mouse_position.0 * viewport_width) as i32,
+            (normalised_mouse_position.1 * viewport_height) as i32,
         )
     }
 

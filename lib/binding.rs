@@ -41,9 +41,8 @@ pub fn load_bindings(m: &PyModule) {
     bind!(m, mouse_position);
     bind!(m, button_down);
     bind!(m, poll_events);
-    bind!(m, camera);
-    bind!(m, tile);
-    bind!(m, clear);
+    bind!(m, set_viewport);
+    bind!(m, set_tile);
 }
 
 pub fn destroy_engine() {
@@ -99,25 +98,25 @@ fn exit() {
 ///
 /// Needs to be provided with a camera to determine the coordinate space to be used
 #[pyfunction]
-fn mouse_position() -> (i64, i64) {
+fn mouse_position() -> (i32, i32) {
     engine!().mouse_position()
 }
 
-/// camera(viewport_width, viewport_height)
+/// set_viewport(viewport_width, viewport_height)
 /// --
-/// Set the camera viewport
+/// Set the viewport in tiles
 #[pyfunction]
-fn camera(viewport_width: f32, viewport_height: f32) {
-    engine!().set_camera(viewport_width, viewport_height)
+fn set_viewport(viewport_width: i32, viewport_height: i32) {
+    engine!().set_viewport(viewport_width, viewport_height)
 }
 
-/// tile(name, x, y)
-/// tile(name, x, y, r, g, b)
-/// tile(name, x, y, r, g, b, flip_x, flip_y)
+/// set_tile(name, x, y)
+/// set_tile(name, x, y, r, g, b)
+/// set_tile(name, x, y, r, g, b, flip_x, flip_y)
 /// --
 /// Add a tile to the scene
 #[pyfunction]
-fn tile(
+fn set_tile(
     name: String,
     x: i32,
     y: i32,
@@ -128,14 +127,6 @@ fn tile(
     flip_y: Option<bool>,
 ) {
     engine!().set_tile(name, x, y, r, g, b, flip_x, flip_y);
-}
-
-/// clear()
-/// --
-/// Clear the scene of all tiles
-#[pyfunction]
-fn clear() {
-    engine!().clear();
 }
 
 /// button_down(button) -> Boolean
@@ -241,8 +232,8 @@ fn pyobject_into_configuration(config: PyObject) -> Config {
     let window_width = extract_or!(py, config, "window_width", u32, 800);
     let window_height = extract_or!(py, config, "window_height", u32, 600);
     let window_resizable = extract_or!(py, config, "window_resizable", bool, false);
-    let viewport_width = extract_or!(py, config, "viewport_width", f32, 10.);
-    let viewport_height = extract_or!(py, config, "viewport_height", f32, 10.);
+    let viewport_width = extract_or!(py, config, "viewport_width", i32, 10);
+    let viewport_height = extract_or!(py, config, "viewport_height", i32, 10);
 
     let blend_mode_string = extract_or!(py, config, "blend_mode", String, "halves".to_string());
 
