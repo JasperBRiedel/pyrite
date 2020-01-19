@@ -23,6 +23,9 @@ pub fn start<R: resources::Provider + 'static>(resource_provider: R) {
     binding::load_bindings(engine_module);
     inject_python_module(py, engine_module);
 
+    PyModule::from_code(py, include_str!("importer.py"), "importer.py", "importer")
+        .expect("failed to create python resource importer hook");
+
     match PyModule::from_code(py, &entry_source, entry_path, "entry") {
         Ok(_) => (),           // game exited gracefully, clean up and exit engine.
         Err(e) => e.print(py), // game syntax or logic error occurred, write crash log, clean up and exit engine.
