@@ -5,8 +5,18 @@ mod platform;
 pub mod resources;
 
 use pyo3::{prelude::*, types::PyDict};
+use std::thread;
+use std::time::Duration;
 
-pub fn start<R: resources::Provider + 'static>(resource_provider: R) {
+pub enum ExecutionMode {
+    Debug,
+    Release,
+}
+
+pub fn start<R: resources::Provider + 'static>(
+    resource_provider: R,
+    execution_mode: ExecutionMode,
+) {
     let py_lock = Python::acquire_gil();
     let py = py_lock.python();
 
@@ -27,11 +37,17 @@ pub fn start<R: resources::Provider + 'static>(resource_provider: R) {
         .expect("failed to create python resource importer hook");
 
     match PyModule::from_code(py, &entry_source, entry_path, "entry") {
-        Ok(_) => (),           // game exited gracefully, clean up and exit engine.
-        Err(e) => e.print(py), // game syntax or logic error occurred, write crash log, clean up and exit engine.
-    }
+        Ok(_) => binding::destroy_engine(), // game exited gracefully, clean up and exit engine.
+        Err(e) => {
+            binding::destroy_engine();
+            println!("Scripting error occurred, please report this to the developer");
+            e.print(py); // game syntax or logic error occurred, write crash log, clean up and exit engine.
 
-    binding::destroy_engine();
+            if let ExecutionMode::Release = execution_mode {
+                thread::sleep(Duration::from_secs(120));
+            }
+        }
+    }
 }
 
 fn inject_python_module(py: Python, module: &PyModule) {

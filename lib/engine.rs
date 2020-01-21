@@ -278,7 +278,8 @@ impl Engine {
         self.graphics_context = Some(graphics_context);
     }
 
-    fn clean(&mut self) {
+    pub fn clean(&mut self) {
+        self.graphics_context.take();
         self.platform.service(&mut None);
     }
 }
