@@ -43,7 +43,8 @@ pub fn load_bindings(m: &PyModule) {
     bind!(m, poll_events);
     bind!(m, set_viewport);
     bind!(m, set_tile);
-    bind!(m, read_resource);
+    bind!(m, resource_read);
+    bind!(m, resource_exists);
 }
 
 pub fn destroy_engine() {
@@ -150,12 +151,20 @@ fn poll_events() -> Vec<PyObject> {
         .collect()
 }
 
-/// read_resource(path)
+/// resource_read(path)
 /// --
 /// Read in the contents of a resource file
 #[pyfunction]
-fn read_resource(path: String) -> String {
-    engine!().read_resource(path)
+fn resource_read(path: String) -> String {
+    engine!().resource_read(path)
+}
+
+/// resource_exists(path)
+/// --
+/// Check if a resource exists
+#[pyfunction]
+fn resource_exists(path: String) -> bool {
+    engine!().resource_exists(path)
 }
 
 fn event_into_pyobject(event: Event) -> PyObject {

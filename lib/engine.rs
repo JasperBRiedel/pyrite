@@ -251,10 +251,15 @@ impl Engine {
     }
 
     // API Function
-    pub fn read_resource(&mut self, path: String) -> String {
+    pub fn resource_read(&mut self, path: String) -> String {
         self.resources
             .read_to_string(&path)
             .unwrap_or(String::new())
+    }
+
+    // API Function
+    pub fn resource_exists(&self, path: String) -> bool {
+        self.resources.exists(&path)
     }
 
     fn initialise(&mut self) {

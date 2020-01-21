@@ -12,16 +12,12 @@ class EngineLoader(SourceLoader):
         return f"{fullname}.py"
 
     def get_data(self, filename):
-        return pyrite.read_resource(filename)
+        return pyrite.resource_read(filename)
 
 class EngineMetaFinder(MetaPathFinder):
     def find_spec(self, fullname, path, target=None):
-        if len(pyrite.read_resource(f"{fullname}.py")) > 0:
+        if pyrite.resource_exists(f"{fullname}.py"):
             return ModuleSpec(fullname, EngineLoader(fullname))
 
-# https://docs.python.org/3/library/importlib.html#importing-a-source-file-directly
-# currently won't find sub modules, the bottom of the page above shows how python decides to
-# import things.
-
-sys.meta_path.insert(0, EngineMetaFinder())
+sys.meta_path.append(EngineMetaFinder())
 

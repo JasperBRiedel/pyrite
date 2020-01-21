@@ -6,6 +6,8 @@ pub trait Provider {
     fn read_to_string(&self, path: &str) -> Option<String>;
 
     fn read_to_bytes(&self, path: &str) -> Option<Vec<u8>>;
+
+    fn exists(&self, path: &str) -> bool;
 }
 
 pub struct FilesystemProvider {
@@ -20,7 +22,6 @@ impl FilesystemProvider {
 
 impl Provider for FilesystemProvider {
     fn read_to_string(&self, path: &str) -> Option<String> {
-        println!("reading resource: {}", path);
         let file_path = self.root_path.join(path);
         let mut file = fs::File::open(file_path).ok()?;
         let mut string_data = String::new();
@@ -29,11 +30,14 @@ impl Provider for FilesystemProvider {
     }
 
     fn read_to_bytes(&self, path: &str) -> Option<Vec<u8>> {
-        println!("reading resource: {}", path);
         let file_path = self.root_path.join(path);
         let mut file = fs::File::open(file_path).ok()?;
         let mut data = Vec::new();
         file.read_to_end(&mut data).ok()?;
         Some(data)
+    }
+
+    fn exists(&self, path: &str) -> bool {
+        self.root_path.join(path).exists()
     }
 }
