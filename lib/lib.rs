@@ -5,8 +5,6 @@ mod platform;
 pub mod resources;
 
 use pyo3::{prelude::*, types::PyDict};
-use std::thread;
-use std::time::Duration;
 
 pub fn start<R: resources::Provider + 'static>(resource_provider: R) {
     let py_lock = Python::acquire_gil();

@@ -1,9 +1,9 @@
 use crate::engine;
 use crate::graphics;
 use crate::graphics::Viewport;
-use glutin::dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize};
+use glutin::dpi::PhysicalSize;
 use glutin::event::{
-    ElementState, Event, KeyboardInput, MouseButton, MouseScrollDelta, VirtualKeyCode, WindowEvent,
+    ElementState, Event, MouseButton, MouseScrollDelta, VirtualKeyCode, WindowEvent,
 };
 use glutin::event_loop::{ControlFlow, EventLoop};
 use glutin::platform::desktop::EventLoopExtDesktop;
@@ -50,8 +50,6 @@ impl Platform {
             close_requested: false,
         }
     }
-
-    pub fn clean_up(&mut self) {}
 
     pub fn service(&mut self, graphics_context: &mut Option<graphics::Context>) {
         // We need to remove the events loop from self as we pass self into a closure passed to

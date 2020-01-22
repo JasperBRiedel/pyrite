@@ -4,8 +4,8 @@ use crate::resources;
 use gl;
 use gl::types::*;
 use glutin::{
-    dpi::LogicalSize, event_loop::EventLoop, window::WindowBuilder, Api, ContextBuilder, GlProfile,
-    GlRequest, PossiblyCurrent, WindowedContext,
+    dpi::LogicalSize, window::WindowBuilder, Api, ContextBuilder, GlProfile, GlRequest,
+    PossiblyCurrent, WindowedContext,
 };
 use image::GenericImageView;
 use image::Pixel;
@@ -14,11 +14,9 @@ use std::ffi;
 use std::mem;
 use std::ptr;
 use std::str;
-use std::time::{Duration, Instant};
 
 pub struct Context {
     pub windowed_context: WindowedContext<PossiblyCurrent>,
-    renderer_started: Instant,
     framebuffer_size: (f32, f32),
     tileset: Option<Tileset>,
     viewport: Viewport,
@@ -56,8 +54,6 @@ impl Context {
 
         gl::load_with(|s| windowed_context.get_proc_address(s) as *const _);
 
-        let renderer_started = Instant::now();
-
         let framebuffer_size = (window_size.width as f32, window_size.height as f32);
 
         let tileset = None;
@@ -77,7 +73,6 @@ impl Context {
 
         Context {
             windowed_context,
-            renderer_started,
             framebuffer_size,
             tileset,
             viewport,
@@ -90,7 +85,6 @@ impl Context {
 
     pub fn load_tileset(
         &mut self,
-        tileset_name: String,
         config: &engine::Config,
         resources: &Box<dyn resources::Provider>,
     ) {
@@ -164,8 +158,6 @@ impl Context {
         }
         self.pending_render = false;
 
-        let seconds_elapsed = self.renderer_started.elapsed().as_secs_f32();
-
         if let Some(tileset) = &self.tileset {
             self.clear_frame();
 
@@ -179,11 +171,6 @@ impl Context {
             self.scene.tiles_modifiers_texture.bind();
 
             self.shader.bind();
-
-            self.shader.set_uniform_1f("time", seconds_elapsed);
-
-            self.shader
-                .set_uniform_2f("framebuffer_size", self.framebuffer_size);
 
             self.shader
                 .set_uniform_2f("viewport_size", self.viewport.get_f32());
@@ -219,6 +206,7 @@ pub struct Viewport {
     height: i32,
 }
 
+#[allow(dead_code)]
 impl Viewport {
     pub fn new(width: i32, height: i32) -> Self {
         Self {
@@ -349,8 +337,8 @@ impl Scene {
                 let global_x = local_x + region.0;
                 let global_y = local_y + region.1;
 
-                let local_index = (local_y * region.2 + local_x);
-                let global_index = (global_y * Self::SCENE_MAX_SIZE.0 as u32 + global_x);
+                let local_index = local_y * region.2 + local_x;
+                let global_index = global_y * Self::SCENE_MAX_SIZE.0 as u32 + global_x;
 
                 self.tiles_upload_buffer[local_index as usize] = self.tiles[global_index as usize];
                 self.tiles_modifiers_upload_buffer[local_index as usize] =
@@ -499,11 +487,10 @@ pub struct Texture {
     texture: u32,
 }
 
+#[allow(dead_code)]
 impl Texture {
     fn from_image(image: &image::DynamicImage) -> Self {
         unsafe {
-            use image::{GenericImage, GenericImageView, Pixel};
-
             let mut texture = 0;
             gl::GenTextures(1, &mut texture);
 
@@ -537,8 +524,6 @@ impl Texture {
     }
 
     fn update_from_image(&mut self, image: &image::DynamicImage) {
-        use image::{GenericImage, GenericImageView, Pixel};
-
         unsafe {
             gl::BindTexture(gl::TEXTURE_2D, self.texture);
 
@@ -752,6 +737,7 @@ pub struct Shader {
     program: u32,
 }
 
+#[allow(dead_code)]
 impl Shader {
     pub fn new(vertex_shader_source: &str, fragment_shader_source: &str) -> Self {
         unsafe {

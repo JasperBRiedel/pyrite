@@ -274,7 +274,7 @@ impl Engine {
             .expect("tried to initialise renderer without configuration being loaded first");
 
         // load tile sets into renderer
-        graphics_context.load_tileset(config.tileset_path.clone(), &config, &self.resources);
+        graphics_context.load_tileset(&config, &self.resources);
 
         self.graphics_context = Some(graphics_context);
     }

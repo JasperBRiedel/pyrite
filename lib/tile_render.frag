@@ -3,8 +3,6 @@ out vec4 FragColor;
 
 in vec2 tex_pos;
 
-uniform float time;
-uniform vec2 framebuffer_size;
 uniform vec2 viewport_size;
 uniform vec2 tileset_size;
 

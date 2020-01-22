@@ -48,8 +48,9 @@ pub fn load_bindings(m: &PyModule) {
 }
 
 pub fn destroy_engine() {
+    engine!().clean();
+
     unsafe {
-        engine!().clean();
         ENGINE_INSTANCE = None;
     }
 }

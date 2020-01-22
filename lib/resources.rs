@@ -1,6 +1,6 @@
 use std::fs;
 use std::io::Read;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 pub trait Provider {
     fn read_to_string(&self, path: &str) -> Option<String>;
