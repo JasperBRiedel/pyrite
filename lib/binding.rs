@@ -200,6 +200,17 @@ fn event_into_pyobject(event: Event) -> PyObject {
                 .set_item("text", text)
                 .expect("failed to set event item");
         }
+        Event::Resized { width, height } => {
+            py_event
+                .set_item("type", "resize")
+                .expect("failed to set event item");
+            py_event
+                .set_item("width", width)
+                .expect("failed to set event item");
+            py_event
+                .set_item("height", height)
+                .expect("failed to set event item");
+        }
     };
 
     return py_event.to_object(py);

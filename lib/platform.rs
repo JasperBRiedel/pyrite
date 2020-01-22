@@ -17,7 +17,7 @@ pub struct Platform {
     button_states: HashMap<String, ButtonState>,
     logical_mouse_position: (i32, i32),
     smooth_mouse_scroll_accumulator: (f32, f32),
-    input_event_queue: VecDeque<engine::Event>,
+    engine_event_queue: VecDeque<engine::Event>,
     pub close_requested: bool,
 }
 
@@ -38,7 +38,7 @@ impl Platform {
 
         let button_states = HashMap::new();
 
-        let input_event_queue = VecDeque::new();
+        let engine_event_queue = VecDeque::new();
 
         Self {
             events,
@@ -46,7 +46,7 @@ impl Platform {
             button_states,
             logical_mouse_position: (0, 0),
             smooth_mouse_scroll_accumulator: (0., 0.),
-            input_event_queue,
+            engine_event_queue,
             close_requested: false,
         }
     }
@@ -76,6 +76,11 @@ impl Platform {
                             // the scene will be streched to fit, but this is better than having
                             // large black regions of the window while resizing.
                             context.present_frame();
+
+                            self.engine_event_queue.push_back(engine::Event::Resized {
+                                width: physical_size.width as i32,
+                                height: physical_size.height as i32,
+                            });
                         }
                     }
                     WindowEvent::CloseRequested => {
@@ -86,7 +91,7 @@ impl Platform {
                         self.logical_mouse_position = position.into();
                     }
                     WindowEvent::ReceivedCharacter(c) => {
-                        self.input_event_queue.push_back(engine::Event::Text {
+                        self.engine_event_queue.push_back(engine::Event::Text {
                             text: c.to_string(),
                         });
                     }
@@ -128,7 +133,7 @@ impl Platform {
                                 y: delta_y as i32,
                             };
 
-                            self.input_event_queue.push_back(event);
+                            self.engine_event_queue.push_back(event);
                         }
                     }
                     WindowEvent::MouseInput { button, state, .. } => {
@@ -153,7 +158,7 @@ impl Platform {
                             transition: transition.clone(),
                         };
 
-                        self.input_event_queue.push_back(button_code_event);
+                        self.engine_event_queue.push_back(button_code_event);
 
                         if let Some(button_name) = button_name {
                             self.button_states.insert(button_name.clone(), state);
@@ -163,7 +168,7 @@ impl Platform {
                                 transition,
                             };
 
-                            self.input_event_queue.push_back(button_name_event);
+                            self.engine_event_queue.push_back(button_name_event);
                         }
                     }
                     WindowEvent::KeyboardInput { input, .. } => {
@@ -182,9 +187,9 @@ impl Platform {
                         };
 
                         if last_state.is_some() && last_state.unwrap() != state {
-                            self.input_event_queue.push_back(scancode_event);
+                            self.engine_event_queue.push_back(scancode_event);
                         } else if last_state.is_none() {
-                            self.input_event_queue.push_back(scancode_event);
+                            self.engine_event_queue.push_back(scancode_event);
                         }
 
                         if let Some(virtual_key) = input.virtual_keycode {
@@ -198,9 +203,9 @@ impl Platform {
                             };
 
                             if last_state.is_some() && last_state.unwrap() != state {
-                                self.input_event_queue.push_back(named_event);
+                                self.engine_event_queue.push_back(named_event);
                             } else if last_state.is_none() {
-                                self.input_event_queue.push_back(named_event);
+                                self.engine_event_queue.push_back(named_event);
                             }
                         }
                     }
@@ -239,7 +244,7 @@ impl Platform {
     }
 
     pub fn poll_events(&mut self) -> Vec<engine::Event> {
-        self.input_event_queue.drain(..).collect()
+        self.engine_event_queue.drain(..).collect()
     }
 }
 
