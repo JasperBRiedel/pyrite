@@ -8,15 +8,7 @@ use pyo3::{prelude::*, types::PyDict};
 use std::thread;
 use std::time::Duration;
 
-pub enum ExecutionMode {
-    Debug,
-    Release,
-}
-
-pub fn start<R: resources::Provider + 'static>(
-    resource_provider: R,
-    execution_mode: ExecutionMode,
-) {
+pub fn start<R: resources::Provider + 'static>(resource_provider: R) {
     let py_lock = Python::acquire_gil();
     let py = py_lock.python();
 
@@ -40,12 +32,8 @@ pub fn start<R: resources::Provider + 'static>(
         Ok(_) => binding::destroy_engine(), // game exited gracefully, clean up and exit engine.
         Err(e) => {
             binding::destroy_engine();
-            println!("Scripting error occurred, please report this to the developer");
+            println!("An error occurred in the python environment:");
             e.print(py); // game syntax or logic error occurred, write crash log, clean up and exit engine.
-
-            if let ExecutionMode::Release = execution_mode {
-                thread::sleep(Duration::from_secs(120));
-            }
         }
     }
 }

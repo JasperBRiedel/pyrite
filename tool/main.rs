@@ -166,7 +166,7 @@ fn run_command(project_name: String, project_path: String) {
     println!("Running {} - \"{}\"", project_name, project_dir.display());
 
     let resources = pyrite::resources::FilesystemProvider::new(project_dir);
-    pyrite::start(resources, pyrite::ExecutionMode::Debug);
+    pyrite::start(resources);
 }
 
 fn build_command(project_name: String, project_path: String) {
