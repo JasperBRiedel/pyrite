@@ -31,21 +31,7 @@ void main()
     if ((front_modifier_flip > 0.3 && front_modifier_flip < 0.5) || front_modifier_flip > 0.5) {
         front_tile_uv.y = 1.0 - tile_uv.y;
     }
-    //
-    // calculate front tile modifier data
-    vec4 back_modifiers = texelFetch(back_scene_tiles_modifiers, tile_index, 0).rgba;
-    vec4 back_modifier_color = vec4(back_modifiers.xyz, 1.0);
-
-    float back_modifier_flip = back_modifiers.a;
-    vec2 back_tile_uv;
-    if ((back_modifier_flip > 0.1 && back_modifier_flip < 0.3) || back_modifier_flip > 0.5) {
-        back_tile_uv.x = 1.0 - tile_uv.x;
-    }
-
-    if ((back_modifier_flip > 0.3 && back_modifier_flip < 0.5) || back_modifier_flip > 0.5) {
-        back_tile_uv.y = 1.0 - tile_uv.y;
-    }
-
+    
     // calculate tile data
     vec4 tile_offset = texelFetch(scene_tiles, tile_index, 0);
 
@@ -61,22 +47,37 @@ void main()
         front_tile_color = texture(tileset, front_tileset_uv);
     }
 
-    // calculate back tile colour
-    vec2 back_tile_offset = tile_offset.ba;
-    vec4 back_tile_color; 
-    if (back_tile_offset.x <= -2.0) { // fill
-        back_tile_color = vec4(1.0);
-    } else if (back_tile_offset.x <= -1.0) { // none
-        back_tile_color = vec4(0.0);
-    } else {
-        vec2 back_tileset_uv = tile_size * back_tile_offset + tile_size * tile_uv;
-        back_tile_color = texture(tileset, back_tileset_uv);
-    }
 
     // show front tile if it isn't transparent, else show the back tile
     if (front_tile_color.a > 0.0) {
         FragColor = front_tile_color * front_modifier_color;
     } else {
+        // calculate back tile modifier data
+        vec4 back_modifiers = texelFetch(back_scene_tiles_modifiers, tile_index, 0).rgba;
+        vec4 back_modifier_color = vec4(back_modifiers.xyz, 1.0);
+
+        float back_modifier_flip = back_modifiers.a;
+        vec2 back_tile_uv;
+        if ((back_modifier_flip > 0.1 && back_modifier_flip < 0.3) || back_modifier_flip > 0.5) {
+            back_tile_uv.x = 1.0 - tile_uv.x;
+        }
+
+        if ((back_modifier_flip > 0.3 && back_modifier_flip < 0.5) || back_modifier_flip > 0.5) {
+            back_tile_uv.y = 1.0 - tile_uv.y;
+        }
+
+        // calculate back tile colour
+        vec2 back_tile_offset = tile_offset.ba;
+        vec4 back_tile_color; 
+        if (back_tile_offset.x <= -2.0) { // fill
+            back_tile_color = vec4(1.0);
+        } else if (back_tile_offset.x <= -1.0) { // none
+            back_tile_color = vec4(0.0);
+        } else {
+            vec2 back_tileset_uv = tile_size * back_tile_offset + tile_size * tile_uv;
+            back_tile_color = texture(tileset, back_tileset_uv);
+        }
+
         FragColor = back_tile_color * back_modifier_color;
     }
 
