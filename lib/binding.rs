@@ -121,7 +121,8 @@ fn set_viewport(viewport_width: i32, viewport_height: i32) {
 /// Add a tile to the scene
 #[pyfunction]
 fn set_tile(
-    name: String,
+    front_tile_name: String,
+    back_tile_name: String,
     x: i32,
     y: i32,
     r: Option<u8>,
@@ -130,7 +131,17 @@ fn set_tile(
     flip_x: Option<bool>,
     flip_y: Option<bool>,
 ) {
-    engine!().set_tile(name, x, y, r, g, b, flip_x, flip_y);
+    engine!().set_tile(
+        front_tile_name,
+        back_tile_name,
+        x,
+        y,
+        r,
+        g,
+        b,
+        flip_x,
+        flip_y,
+    );
 }
 
 /// button_down(button) -> Boolean

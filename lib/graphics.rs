@@ -102,7 +102,8 @@ impl Context {
 
     pub fn set_tile(
         &mut self,
-        tile_name: &str,
+        front_tile: &str,
+        back_tile: &str,
         x: i32,
         y: i32,
         r: u8,
@@ -114,9 +115,9 @@ impl Context {
         if let Some(tileset) = &self.tileset {
             // only allow tiles within the viewport to be changed
             if self.viewport.contains(x, y) {
-                let scene_changed = self
-                    .scene
-                    .set_tile(tileset, tile_name, x, y, r, g, b, flip_x, flip_y);
+                let scene_changed = self.scene.set_tile(
+                    tileset, front_tile, back_tile, x, y, r, g, b, flip_x, flip_y,
+                );
 
                 // Flag that the scene was changed. Because we only render and swap buffers when
                 // there's something new to show.
@@ -234,8 +235,8 @@ impl Viewport {
 }
 
 struct Scene {
-    tiles: Vec<(f32, f32)>,
-    tiles_upload_buffer: Vec<(f32, f32)>,
+    tiles: Vec<(f32, f32, f32, f32)>,
+    tiles_upload_buffer: Vec<(f32, f32, f32, f32)>,
     tiles_modifiers: Vec<(u8, u8, u8, u8)>,
     tiles_modifiers_upload_buffer: Vec<(u8, u8, u8, u8)>,
 
@@ -252,14 +253,15 @@ impl Scene {
     const SCENE_TILE_COUNT: usize = (Self::SCENE_MAX_SIZE.0 * Self::SCENE_MAX_SIZE.1) as usize;
 
     fn new() -> Self {
-        let tiles = vec![(0.0, 0.0); Self::SCENE_TILE_COUNT];
-        let tiles_upload_buffer = vec![(0.0, 0.0); Self::SCENE_TILE_COUNT];
+        // Front tiles initialised to "none" and back tiles to "fill"
+        let tiles = vec![(-1.0, 0.0, -2.0, 0.0); Self::SCENE_TILE_COUNT];
+        let tiles_upload_buffer = tiles.clone();
         let tiles_modifiers = vec![(255, 255, 255, 0); Self::SCENE_TILE_COUNT];
-        let tiles_modifiers_upload_buffer = vec![(255, 255, 255, 0); Self::SCENE_TILE_COUNT];
+        let tiles_modifiers_upload_buffer = tiles_modifiers.clone();
 
         // create scene textures and upload scene data
         let tiles_texture =
-            Texture::from_vec2_f32(Self::SCENE_MAX_SIZE.0, Self::SCENE_MAX_SIZE.1, &tiles);
+            Texture::from_vec4_f32(Self::SCENE_MAX_SIZE.0, Self::SCENE_MAX_SIZE.1, &tiles);
 
         let tiles_modifiers_texture = Texture::from_vec4_u8(
             Self::SCENE_MAX_SIZE.0,
@@ -292,7 +294,7 @@ impl Scene {
             self.copy_update_region_to_upload_buffers(update_region_xy_wh);
 
             // preform partial update
-            self.tiles_texture.partial_update_from_vec2_f32(
+            self.tiles_texture.partial_update_from_vec4_f32(
                 update_region_xy_wh.0,
                 update_region_xy_wh.1,
                 update_region_xy_wh.2,
@@ -351,7 +353,8 @@ impl Scene {
     fn set_tile(
         &mut self,
         tileset: &Tileset,
-        name: &str,
+        front_tile: &str,
+        back_tile: &str,
         x: i32,
         y: i32,
         r: u8,
@@ -378,19 +381,21 @@ impl Scene {
 
         // if all the required resources are available, we preform a tile update
         match (
-            tileset.get_tile_location(name),
+            tileset.get_tile_location(front_tile),
+            tileset.get_tile_location(back_tile),
             self.tiles.get_mut(index),
             self.tiles_modifiers.get_mut(index),
         ) {
-            (Some(tile_texture_location), Some(tile), Some(modifiers)) => {
+            (Some(front_tile), Some(back_tile), Some(tile_pair), Some(modifiers)) => {
                 let pending_modifiers = (r, g, b, flip);
 
                 // we should update the data only if the new data is different
-                let should_update_data =
-                    *tile != tile_texture_location || *modifiers != pending_modifiers;
+                let should_update_data = front_tile != (tile_pair.0, tile_pair.1)
+                    || back_tile != (tile_pair.2, tile_pair.3)
+                    || *modifiers != pending_modifiers;
 
                 if should_update_data {
-                    *tile = tile_texture_location;
+                    *tile_pair = (front_tile.0, front_tile.1, back_tile.0, back_tile.1);
                     *modifiers = pending_modifiers;
 
                     self.upload_region_top_left = (
@@ -479,7 +484,11 @@ impl Tileset {
     }
 
     fn get_tile_location(&self, tile_name: &str) -> Option<(f32, f32)> {
-        self.names_to_positions.get(tile_name).cloned()
+        match tile_name {
+            "none" => Some((-1., 0.)),
+            "fill" => Some((-2., 0.)),
+            _ => self.names_to_positions.get(tile_name).cloned(),
+        }
     }
 }
 
@@ -627,6 +636,91 @@ impl Texture {
                 width,
                 height,
                 gl::RG,
+                gl::FLOAT,
+                std::mem::transmute(&data[0]),
+            );
+        }
+    }
+
+    fn from_vec4_f32(width: i32, height: i32, data: &[(f32, f32, f32, f32)]) -> Self {
+        unsafe {
+            let mut texture = 0;
+            gl::GenTextures(1, &mut texture);
+
+            gl::BindTexture(gl::TEXTURE_2D, texture);
+
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
+
+            gl::TexImage2D(
+                gl::TEXTURE_2D,
+                0,
+                gl::RGBA32F as i32,
+                width,
+                height,
+                0,
+                gl::RGBA,
+                gl::FLOAT,
+                std::mem::transmute(&data[0]),
+            );
+
+            if texture <= 0 {
+                panic!("texture creation failed");
+            }
+
+            Self { texture }
+        }
+    }
+
+    fn update_from_vec4_f32(&mut self, width: i32, height: i32, data: &[(f32, f32, f32, f32)]) {
+        unsafe {
+            gl::BindTexture(gl::TEXTURE_2D, self.texture);
+
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
+
+            gl::TexImage2D(
+                gl::TEXTURE_2D,
+                0,
+                gl::RGBA32F as i32,
+                width,
+                height,
+                0,
+                gl::RGBA,
+                gl::FLOAT,
+                std::mem::transmute(&data[0]),
+            );
+        }
+    }
+
+    fn partial_update_from_vec4_f32(
+        &mut self,
+        x: i32,
+        y: i32,
+        width: i32,
+        height: i32,
+        data: &[(f32, f32, f32, f32)],
+    ) {
+        unsafe {
+            gl::BindTexture(gl::TEXTURE_2D, self.texture);
+
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
+
+            gl::TexSubImage2D(
+                gl::TEXTURE_2D,
+                0,
+                x,
+                y,
+                width,
+                height,
+                gl::RGBA,
                 gl::FLOAT,
                 std::mem::transmute(&data[0]),
             );

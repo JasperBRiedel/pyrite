@@ -220,7 +220,8 @@ impl Engine {
     // API Function
     pub fn set_tile(
         &mut self,
-        name: String,
+        front_tile_name: String,
+        back_tile_name: String,
         x: i32,
         y: i32,
         r: Option<u8>,
@@ -236,7 +237,17 @@ impl Engine {
             let flip_x = flip_x.unwrap_or(false);
             let flip_y = flip_y.unwrap_or(false);
 
-            context.set_tile(&name, x, y, r, g, b, flip_x, flip_y);
+            context.set_tile(
+                &front_tile_name,
+                &back_tile_name,
+                x,
+                y,
+                r,
+                g,
+                b,
+                flip_x,
+                flip_y,
+            );
         }
     }
 
