@@ -121,26 +121,26 @@ fn set_viewport(viewport_width: i32, viewport_height: i32) {
 /// Add a tile to the scene
 #[pyfunction]
 fn set_tile(
-    front_tile_name: String,
-    back_tile_name: String,
-    x: i32,
-    y: i32,
-    r: Option<u8>,
-    g: Option<u8>,
-    b: Option<u8>,
-    flip_x: Option<bool>,
-    flip_y: Option<bool>,
+    position: (i32, i32),
+    front_tile: String,
+    front_color: (u8, u8, u8),
+    front_flip: (bool, bool),
+    back_tile: Option<String>,
+    back_color: Option<(u8, u8, u8)>,
+    back_flip: Option<(bool, bool)>,
 ) {
+    let back_tile = back_tile.unwrap_or_else(|| "none".to_owned());
+    let back_color = back_color.unwrap_or((0, 0, 0));
+    let back_flip = back_flip.unwrap_or((false, false));
+
     engine!().set_tile(
-        front_tile_name,
-        back_tile_name,
-        x,
-        y,
-        r,
-        g,
-        b,
-        flip_x,
-        flip_y,
+        position,
+        front_tile,
+        front_color,
+        front_flip,
+        back_tile,
+        back_color,
+        back_flip,
     );
 }
 

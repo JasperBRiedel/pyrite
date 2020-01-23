@@ -8,7 +8,8 @@ uniform vec2 tileset_size;
 
 uniform sampler2D tileset;
 uniform sampler2D scene_tiles;
-uniform sampler2D scene_tiles_modifiers;
+uniform sampler2D front_scene_tiles_modifiers;
+uniform sampler2D back_scene_tiles_modifiers;
 
 void main()
 {
@@ -17,17 +18,32 @@ void main()
     vec2 tile_uv = global_tile_uv - tile_index;
     vec2 tile_size = vec2(1.0) / tileset_size;
 
-    // calculate modifier data
-    vec4 modifiers = texelFetch(scene_tiles_modifiers, tile_index, 0).rgba;
-    vec4 modifier_color = vec4(modifiers.xyz, 1.0);
+    // calculate front tile modifier data
+    vec4 front_modifiers = texelFetch(front_scene_tiles_modifiers, tile_index, 0).rgba;
+    vec4 front_modifier_color = vec4(front_modifiers.xyz, 1.0);
 
-    float modifier_flip = modifiers.a;
-    if ((modifier_flip > 0.1 && modifier_flip < 0.3) || modifier_flip > 0.5) {
-        tile_uv.x = 1.0 - tile_uv.x;
+    float front_modifier_flip = front_modifiers.a;
+    vec2 front_tile_uv;
+    if ((front_modifier_flip > 0.1 && front_modifier_flip < 0.3) || front_modifier_flip > 0.5) {
+        front_tile_uv.x = 1.0 - tile_uv.x;
     }
 
-    if ((modifier_flip > 0.3 && modifier_flip < 0.5) || modifier_flip > 0.5) {
-        tile_uv.y = 1.0 - tile_uv.y;
+    if ((front_modifier_flip > 0.3 && front_modifier_flip < 0.5) || front_modifier_flip > 0.5) {
+        front_tile_uv.y = 1.0 - tile_uv.y;
+    }
+    //
+    // calculate front tile modifier data
+    vec4 back_modifiers = texelFetch(back_scene_tiles_modifiers, tile_index, 0).rgba;
+    vec4 back_modifier_color = vec4(back_modifiers.xyz, 1.0);
+
+    float back_modifier_flip = back_modifiers.a;
+    vec2 back_tile_uv;
+    if ((back_modifier_flip > 0.1 && back_modifier_flip < 0.3) || back_modifier_flip > 0.5) {
+        back_tile_uv.x = 1.0 - tile_uv.x;
+    }
+
+    if ((back_modifier_flip > 0.3 && back_modifier_flip < 0.5) || back_modifier_flip > 0.5) {
+        back_tile_uv.y = 1.0 - tile_uv.y;
     }
 
     // calculate tile data
@@ -59,9 +75,9 @@ void main()
 
     // show front tile if it isn't transparent, else show the back tile
     if (front_tile_color.a > 0.0) {
-        FragColor = front_tile_color * modifier_color;
+        FragColor = front_tile_color * front_modifier_color;
     } else {
-        FragColor = back_tile_color * modifier_color;
+        FragColor = back_tile_color * back_modifier_color;
     }
 
 

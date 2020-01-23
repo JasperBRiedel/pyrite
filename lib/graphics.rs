@@ -102,21 +102,26 @@ impl Context {
 
     pub fn set_tile(
         &mut self,
+        position: (i32, i32),
         front_tile: &str,
+        front_color: (u8, u8, u8),
+        front_flip: (bool, bool),
         back_tile: &str,
-        x: i32,
-        y: i32,
-        r: u8,
-        g: u8,
-        b: u8,
-        flip_x: bool,
-        flip_y: bool,
+        back_color: (u8, u8, u8),
+        back_flip: (bool, bool),
     ) {
         if let Some(tileset) = &self.tileset {
             // only allow tiles within the viewport to be changed
-            if self.viewport.contains(x, y) {
+            if self.viewport.contains(position.0, position.1) {
                 let scene_changed = self.scene.set_tile(
-                    tileset, front_tile, back_tile, x, y, r, g, b, flip_x, flip_y,
+                    tileset,
+                    position,
+                    front_tile,
+                    front_color,
+                    front_flip,
+                    back_tile,
+                    back_color,
+                    back_flip,
                 );
 
                 // Flag that the scene was changed. Because we only render and swap buffers when
@@ -169,7 +174,9 @@ impl Context {
             unsafe { gl::ActiveTexture(gl::TEXTURE1) };
             self.scene.tiles_texture.bind();
             unsafe { gl::ActiveTexture(gl::TEXTURE2) };
-            self.scene.tiles_modifiers_texture.bind();
+            self.scene.front_tiles_modifiers_texture.bind();
+            unsafe { gl::ActiveTexture(gl::TEXTURE3) };
+            self.scene.back_tiles_modifiers_texture.bind();
 
             self.shader.bind();
 
@@ -182,7 +189,8 @@ impl Context {
             // set tileset texture to texture unit 0
             self.shader.set_uniform_1i("tileset", 0);
             self.shader.set_uniform_1i("scene_tiles", 1);
-            self.shader.set_uniform_1i("scene_tiles_modifiers", 2);
+            self.shader.set_uniform_1i("front_scene_tiles_modifiers", 2);
+            self.shader.set_uniform_1i("back_scene_tiles_modifiers", 3);
 
             self.quad.draw();
         }
@@ -237,11 +245,14 @@ impl Viewport {
 struct Scene {
     tiles: Vec<(f32, f32, f32, f32)>,
     tiles_upload_buffer: Vec<(f32, f32, f32, f32)>,
-    tiles_modifiers: Vec<(u8, u8, u8, u8)>,
-    tiles_modifiers_upload_buffer: Vec<(u8, u8, u8, u8)>,
+    front_tiles_modifiers: Vec<(u8, u8, u8, u8)>,
+    front_tiles_modifiers_upload_buffer: Vec<(u8, u8, u8, u8)>,
+    back_tiles_modifiers: Vec<(u8, u8, u8, u8)>,
+    back_tiles_modifiers_upload_buffer: Vec<(u8, u8, u8, u8)>,
 
     tiles_texture: Texture,
-    tiles_modifiers_texture: Texture,
+    front_tiles_modifiers_texture: Texture,
+    back_tiles_modifiers_texture: Texture,
 
     upload_pending: bool,
     upload_region_top_left: (u32, u32),
@@ -256,17 +267,27 @@ impl Scene {
         // Front tiles initialised to "none" and back tiles to "fill"
         let tiles = vec![(-1.0, 0.0, -2.0, 0.0); Self::SCENE_TILE_COUNT];
         let tiles_upload_buffer = tiles.clone();
-        let tiles_modifiers = vec![(255, 255, 255, 0); Self::SCENE_TILE_COUNT];
-        let tiles_modifiers_upload_buffer = tiles_modifiers.clone();
+
+        let front_tiles_modifiers = vec![(255, 255, 255, 0); Self::SCENE_TILE_COUNT];
+        let front_tiles_modifiers_upload_buffer = front_tiles_modifiers.clone();
+
+        let back_tiles_modifiers = vec![(255, 255, 255, 0); Self::SCENE_TILE_COUNT];
+        let back_tiles_modifiers_upload_buffer = back_tiles_modifiers.clone();
 
         // create scene textures and upload scene data
         let tiles_texture =
             Texture::from_vec4_f32(Self::SCENE_MAX_SIZE.0, Self::SCENE_MAX_SIZE.1, &tiles);
 
-        let tiles_modifiers_texture = Texture::from_vec4_u8(
+        let front_tiles_modifiers_texture = Texture::from_vec4_u8(
             Self::SCENE_MAX_SIZE.0,
             Self::SCENE_MAX_SIZE.1,
-            &tiles_modifiers,
+            &front_tiles_modifiers,
+        );
+
+        let back_tiles_modifiers_texture = Texture::from_vec4_u8(
+            Self::SCENE_MAX_SIZE.0,
+            Self::SCENE_MAX_SIZE.1,
+            &back_tiles_modifiers,
         );
 
         let upload_pending = false;
@@ -276,10 +297,13 @@ impl Scene {
         Self {
             tiles,
             tiles_upload_buffer,
-            tiles_modifiers,
-            tiles_modifiers_upload_buffer,
+            front_tiles_modifiers,
+            front_tiles_modifiers_upload_buffer,
+            back_tiles_modifiers,
+            back_tiles_modifiers_upload_buffer,
             tiles_texture,
-            tiles_modifiers_texture,
+            front_tiles_modifiers_texture,
+            back_tiles_modifiers_texture,
             upload_pending,
             upload_region_top_left,
             upload_region_bottom_right,
@@ -302,13 +326,23 @@ impl Scene {
                 &self.tiles_upload_buffer,
             );
 
-            self.tiles_modifiers_texture.partial_update_from_vec4_u8(
-                update_region_xy_wh.0,
-                update_region_xy_wh.1,
-                update_region_xy_wh.2,
-                update_region_xy_wh.3,
-                &self.tiles_modifiers_upload_buffer,
-            );
+            self.front_tiles_modifiers_texture
+                .partial_update_from_vec4_u8(
+                    update_region_xy_wh.0,
+                    update_region_xy_wh.1,
+                    update_region_xy_wh.2,
+                    update_region_xy_wh.3,
+                    &self.front_tiles_modifiers_upload_buffer,
+                );
+
+            self.back_tiles_modifiers_texture
+                .partial_update_from_vec4_u8(
+                    update_region_xy_wh.0,
+                    update_region_xy_wh.1,
+                    update_region_xy_wh.2,
+                    update_region_xy_wh.3,
+                    &self.back_tiles_modifiers_upload_buffer,
+                );
 
             // reset update region tracking
             self.upload_pending = false;
@@ -343,8 +377,11 @@ impl Scene {
                 let global_index = global_y * Self::SCENE_MAX_SIZE.0 as u32 + global_x;
 
                 self.tiles_upload_buffer[local_index as usize] = self.tiles[global_index as usize];
-                self.tiles_modifiers_upload_buffer[local_index as usize] =
-                    self.tiles_modifiers[global_index as usize];
+
+                self.front_tiles_modifiers_upload_buffer[local_index as usize] =
+                    self.front_tiles_modifiers[global_index as usize];
+                self.back_tiles_modifiers_upload_buffer[local_index as usize] =
+                    self.back_tiles_modifiers[global_index as usize];
             }
         }
     }
@@ -353,26 +390,31 @@ impl Scene {
     fn set_tile(
         &mut self,
         tileset: &Tileset,
+        position: (i32, i32),
         front_tile: &str,
+        front_color: (u8, u8, u8),
+        front_flip: (bool, bool),
         back_tile: &str,
-        x: i32,
-        y: i32,
-        r: u8,
-        g: u8,
-        b: u8,
-        flip_x: bool,
-        flip_y: bool,
+        back_color: (u8, u8, u8),
+        back_flip: (bool, bool),
     ) -> bool {
         // we don't care about negative locations, but it makes easier for other systems to
         // interact when we accept a signed number, so we convert here.
-        let x = x as u32;
-        let y = y as u32;
+        let x = position.0 as u32;
+        let y = position.1 as u32;
 
         // find liner index
         let index = (y * Self::SCENE_MAX_SIZE.0 as u32 + x) as usize;
 
         // determine flip value
-        let flip = match (flip_x, flip_y) {
+        let front_flip = match (front_flip.0, front_flip.1) {
+            (false, false) => 0,  // flip none = 0
+            (true, false) => 51,  // flip x = 0.2
+            (false, true) => 102, // flip y = 0.4
+            (true, true) => 153,  // flip x and y = .6
+        };
+
+        let back_flip = match (back_flip.0, back_flip.1) {
             (false, false) => 0,  // flip none = 0
             (true, false) => 51,  // flip x = 0.2
             (false, true) => 102, // flip y = 0.4
@@ -384,19 +426,30 @@ impl Scene {
             tileset.get_tile_location(front_tile),
             tileset.get_tile_location(back_tile),
             self.tiles.get_mut(index),
-            self.tiles_modifiers.get_mut(index),
+            self.front_tiles_modifiers.get_mut(index),
+            self.back_tiles_modifiers.get_mut(index),
         ) {
-            (Some(front_tile), Some(back_tile), Some(tile_pair), Some(modifiers)) => {
-                let pending_modifiers = (r, g, b, flip);
+            (
+                Some(front_tile),
+                Some(back_tile),
+                Some(tile_pair),
+                Some(front_modifiers),
+                Some(back_modifiers),
+            ) => {
+                let pending_modifiers = (
+                    (front_color.0, front_color.1, front_color.2, front_flip),
+                    (back_color.0, back_color.1, back_color.2, back_flip),
+                );
 
                 // we should update the data only if the new data is different
                 let should_update_data = front_tile != (tile_pair.0, tile_pair.1)
                     || back_tile != (tile_pair.2, tile_pair.3)
-                    || *modifiers != pending_modifiers;
+                    || (*front_modifiers, *back_modifiers) != pending_modifiers;
 
                 if should_update_data {
                     *tile_pair = (front_tile.0, front_tile.1, back_tile.0, back_tile.1);
-                    *modifiers = pending_modifiers;
+                    *front_modifiers = pending_modifiers.0;
+                    *back_modifiers = pending_modifiers.1;
 
                     self.upload_region_top_left = (
                         self.upload_region_top_left.0.min(x),

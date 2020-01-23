@@ -220,33 +220,23 @@ impl Engine {
     // API Function
     pub fn set_tile(
         &mut self,
-        front_tile_name: String,
-        back_tile_name: String,
-        x: i32,
-        y: i32,
-        r: Option<u8>,
-        g: Option<u8>,
-        b: Option<u8>,
-        flip_x: Option<bool>,
-        flip_y: Option<bool>,
+        position: (i32, i32),
+        front_tile: String,
+        front_color: (u8, u8, u8),
+        front_flip: (bool, bool),
+        back_tile: String,
+        back_color: (u8, u8, u8),
+        back_flip: (bool, bool),
     ) {
         if let Some(context) = self.graphics_context.as_mut() {
-            let r = r.unwrap_or(255);
-            let g = g.unwrap_or(255);
-            let b = b.unwrap_or(255);
-            let flip_x = flip_x.unwrap_or(false);
-            let flip_y = flip_y.unwrap_or(false);
-
             context.set_tile(
-                &front_tile_name,
-                &back_tile_name,
-                x,
-                y,
-                r,
-                g,
-                b,
-                flip_x,
-                flip_y,
+                position,
+                &front_tile,
+                front_color,
+                front_flip,
+                &back_tile,
+                back_color,
+                back_flip,
             );
         }
     }
