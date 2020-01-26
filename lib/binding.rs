@@ -35,7 +35,6 @@ macro_rules! engine {
 
 pub fn load_bindings(m: &PyModule) {
     bind!(m, run);
-    bind!(m, load);
     bind!(m, timestep);
     bind!(m, exit);
     bind!(m, mouse_position);
@@ -70,14 +69,6 @@ macro_rules! extract_or {
 fn run(config: PyObject) -> bool {
     let config = pyobject_into_configuration(config);
     engine!().run(config)
-}
-
-/// load()
-/// --
-/// returns true when the game should load
-#[pyfunction]
-fn load() -> bool {
-    engine!().load()
 }
 
 /// timestep(interval)

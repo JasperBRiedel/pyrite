@@ -20,13 +20,6 @@ pub struct Config {
     pub tile_names: Vec<String>,
 }
 
-enum EngineState {
-    Starting, // Initial engine state before any methods are called
-    Loading,  // First iteration of the main loop will have this state
-    Running,  // Running state set once the engine is initialised and run function invoked
-    Exiting,  // Exiting set when the game requests that the engine exit
-}
-
 struct Timestep {
     accumulator: Duration,
     last_step: Instant,
@@ -65,11 +58,11 @@ pub enum Event {
 pub struct Engine {
     config: Option<Config>,
     resources: Box<dyn resources::Provider>,
-    state: EngineState,
     timesteps: HashMap<String, Timestep>,
     current_timestep_identifier: String,
     platform: Platform,
     graphics_context: Option<graphics::Context>,
+    running: bool,
 }
 
 impl Engine {
@@ -77,30 +70,20 @@ impl Engine {
         Self {
             config: None,
             resources,
-            state: EngineState::Starting,
             timesteps: HashMap::new(),
             current_timestep_identifier: String::from("outer"),
             graphics_context: None,
             platform: Platform::new(),
+            running: true,
         }
     }
 
     // API Function
     pub fn run(&mut self, config: Config) -> bool {
-        match self.state {
-            EngineState::Loading => self.state = EngineState::Running,
-            _ => (),
-        }
-
         if self.config.is_none() {
             self.config = Some(dbg!(config));
 
             self.initialise();
-
-            match self.state {
-                EngineState::Starting => self.state = EngineState::Loading,
-                _ => (),
-            }
         }
 
         let frame_presented = self.graphics_context.as_mut().unwrap().present_frame();
@@ -112,29 +95,12 @@ impl Engine {
             thread::sleep(Duration::from_millis(8));
         }
 
-        if self.platform.close_requested {
-            self.state = EngineState::Exiting;
+        if !self.running || self.platform.close_requested {
+            self.clean();
+            return false;
         }
 
-        match self.state {
-            EngineState::Running | EngineState::Loading => true,
-            EngineState::Exiting => {
-                self.clean();
-                false
-            }
-            _ => false,
-        }
-    }
-
-    // API Function
-    pub fn load(&mut self) -> bool {
-        match self.state {
-            EngineState::Loading => {
-                self.state = EngineState::Running;
-                true
-            }
-            _ => false,
-        }
+        return true;
     }
 
     // API Function
@@ -161,7 +127,7 @@ impl Engine {
 
     // API Function
     pub fn exit(&mut self) {
-        self.state = EngineState::Exiting;
+        self.running = false;
     }
 
     // API Function
