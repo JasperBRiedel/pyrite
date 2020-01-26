@@ -1,5 +1,6 @@
 use crate::graphics;
 use crate::platform::Platform;
+use crate::pyrite_log;
 use crate::resources;
 use std::collections::HashMap;
 use std::thread;
@@ -81,7 +82,9 @@ impl Engine {
     // API Function
     pub fn run(&mut self, config: Config) -> bool {
         if self.config.is_none() {
-            self.config = Some(dbg!(config));
+            pyrite_log!("Loading configuration");
+            log_config(&config);
+            self.config = Some(config);
 
             self.initialise();
         }
@@ -108,7 +111,10 @@ impl Engine {
         let timestep = self
             .timesteps
             .entry(timestep_identifier.clone())
-            .or_insert(Timestep::new());
+            .or_insert_with(|| {
+                pyrite_log!("Registered new timestep \"{}\"", timestep_identifier);
+                Timestep::new()
+            });
 
         self.platform.service(&mut self.graphics_context);
 
@@ -127,6 +133,7 @@ impl Engine {
 
     // API Function
     pub fn exit(&mut self) {
+        pyrite_log!("Exited requested");
         self.running = false;
     }
 
@@ -145,6 +152,7 @@ impl Engine {
     // API Function
     pub fn set_viewport(&mut self, width: i32, height: i32) {
         if let Some(context) = &mut self.graphics_context {
+            pyrite_log!("Viewport dimensions updated: ({}, {})", width, height);
             context.set_viewport(width, height);
         }
     }
@@ -216,4 +224,24 @@ impl Engine {
         self.graphics_context.take();
         self.platform.service(&mut None);
     }
+}
+
+fn log_config(config: &Config) {
+    macro_rules! log_config_item {
+        ($config:ident, $item:ident) => {
+            pyrite_log!("{}: {:?}", stringify!($item), $config.$item);
+        };
+    }
+
+    log_config_item!(config, application_name);
+    log_config_item!(config, application_version);
+    log_config_item!(config, window_width);
+    log_config_item!(config, window_height);
+    log_config_item!(config, window_resizable);
+    log_config_item!(config, viewport_width);
+    log_config_item!(config, viewport_height);
+    log_config_item!(config, tileset_width);
+    log_config_item!(config, tileset_height);
+    log_config_item!(config, tileset_path);
+    log_config_item!(config, tile_names);
 }

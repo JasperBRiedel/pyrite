@@ -1,5 +1,6 @@
 use crate::engine;
 use crate::platform;
+use crate::pyrite_log;
 use crate::resources;
 use gl;
 use gl::types::*;
@@ -28,6 +29,7 @@ pub struct Context {
 
 impl Context {
     pub fn new(config: &engine::Config, platform: &platform::Platform) -> Self {
+        pyrite_log!("Loading graphics context");
         let window_size = LogicalSize::new(config.window_width as f64, config.window_height as f64);
 
         let window_builder = WindowBuilder::new()
@@ -54,22 +56,28 @@ impl Context {
 
         gl::load_with(|s| windowed_context.get_proc_address(s) as *const _);
 
+        gl_log_info();
+
         let framebuffer_size = (window_size.width as f32, window_size.height as f32);
 
         let tileset = None;
 
         let viewport = Viewport::new(config.viewport_width, config.viewport_height);
 
+        pyrite_log!("Loading scene...");
         let scene = Scene::new();
 
         let quad = Quad::new();
 
+        pyrite_log!("Loading shaders...");
         let shader = Shader::new(
             include_str!("pass_through.vert"),
             include_str!("tile_render.frag"),
         );
 
         let pending_render = true;
+
+        pyrite_log!("Graphics context created");
 
         Context {
             windowed_context,
@@ -98,6 +106,15 @@ impl Context {
             (config.tileset_width, config.tileset_height),
             config.tile_names.clone(),
         ));
+
+        pyrite_log!(
+            "Loaded tileset {} (tiles: {}x{}) (pixels: {}x{})",
+            config.tileset_path,
+            config.tileset_width,
+            config.tileset_height,
+            tileset_image.width(),
+            tileset_image.height(),
+        );
     }
 
     pub fn set_tile(
@@ -1088,5 +1105,26 @@ impl Drop for Quad {
             gl::DeleteBuffers(1, &self.vbo);
             gl::DeleteBuffers(1, &self.ebo);
         }
+    }
+}
+
+fn gl_log_info() {
+    let version = gl_get_string(gl::VERSION);
+    let _vendor = gl_get_string(gl::VENDOR);
+    let renderer = gl_get_string(gl::RENDERER);
+    let shader_version = gl_get_string(gl::VERSION);
+
+    pyrite_log!("OpenGL: {}", version);
+    pyrite_log!("GPU: {}", renderer);
+    pyrite_log!("GLSL: {}", shader_version);
+}
+
+fn gl_get_string(name: u32) -> String {
+    use std::ffi::CStr;
+    unsafe {
+        let data = CStr::from_ptr(gl::GetString(name) as *const _)
+            .to_bytes()
+            .to_vec();
+        String::from_utf8(data).unwrap()
     }
 }
