@@ -6,48 +6,14 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 #[derive(Debug)]
-pub enum EngineMode {
-    Client,
-    Server,
-}
-
-impl EngineMode {
-    pub fn from_string(s: &str) -> Self {
-        match s.to_lowercase().as_str() {
-            "client" => Self::Client,
-            "server" => Self::Server,
-            _ => Self::Client,
-        }
-    }
-}
-
-#[derive(Debug)]
-pub enum BlendMode {
-    Halves,
-    Alternate,
-}
-
-impl BlendMode {
-    pub fn from_string(s: &str) -> Self {
-        match s.to_lowercase().as_str() {
-            "halves" => Self::Halves,
-            "alternate" => Self::Alternate,
-            _ => Self::Halves,
-        }
-    }
-}
-
-#[derive(Debug)]
 pub struct Config {
     pub application_name: String,
     pub application_version: String,
-    pub engine_mode: EngineMode,
     pub window_width: u32,
     pub window_height: u32,
     pub window_resizable: bool,
     pub viewport_width: i32,
     pub viewport_height: i32,
-    pub blend_mode: BlendMode,
     pub tileset_width: u32,
     pub tileset_height: u32,
     pub tileset_path: String,

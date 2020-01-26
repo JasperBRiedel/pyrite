@@ -27,7 +27,14 @@ pub fn start<R: resources::Provider + 'static>(resource_provider: R) {
         .expect("failed to create python resource importer hook");
 
     match PyModule::from_code(py, &entry_source, entry_path, "entry") {
-        Ok(_) => binding::destroy_engine(), // game exited gracefully, clean up and exit engine.
+        Ok(entry) => {
+            match entry.call0("__entry__") {
+                Err(e) => e.print(py),
+                _ => (),
+            }
+
+            binding::destroy_engine(); // game exited gracefully, clean up and exit engine.
+        }
         Err(e) => {
             binding::destroy_engine();
             println!("An error occurred in the python environment:");

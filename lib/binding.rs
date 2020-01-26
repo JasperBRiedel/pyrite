@@ -228,22 +228,6 @@ fn event_into_pyobject(event: Event) -> PyObject {
     return py_event.to_object(py);
 }
 
-// fn pyobject_into_camera(camera: PyObject) -> graphics::Camera {
-//     let py = unsafe { Python::assume_gil_acquired() };
-
-//     let camera: HashMap<String, PyObject> = camera
-//         .extract(py)
-//         .expect("Type error when reading camera structure");
-
-//     let viewport_width = extract_or!(py, camera, "viewport_width", f32, 10.);
-//     let viewport_height = extract_or!(py, camera, "viewport_height", f32, 10.);
-
-//     graphics::Camera {
-//         viewport_width,
-//         viewport_height,
-//     }
-// }
-
 fn pyobject_into_configuration(config: PyObject) -> Config {
     let py = unsafe { Python::assume_gil_acquired() };
 
@@ -267,19 +251,11 @@ fn pyobject_into_configuration(config: PyObject) -> Config {
         "0.0.0".to_string()
     );
 
-    let engine_mode_string = extract_or!(py, config, "engine_mode", String, "client".to_string());
-
-    let engine_mode = EngineMode::from_string(&engine_mode_string);
-
     let window_width = extract_or!(py, config, "window_width", u32, 800);
     let window_height = extract_or!(py, config, "window_height", u32, 600);
     let window_resizable = extract_or!(py, config, "window_resizable", bool, false);
     let viewport_width = extract_or!(py, config, "viewport_width", i32, 10);
     let viewport_height = extract_or!(py, config, "viewport_height", i32, 10);
-
-    let blend_mode_string = extract_or!(py, config, "blend_mode", String, "halves".to_string());
-
-    let blend_mode = BlendMode::from_string(&blend_mode_string);
 
     let tileset_width = extract_or!(py, config, "tileset_width", u32, 3);
     let tileset_height = extract_or!(py, config, "tileset_height", u32, 3);
@@ -289,13 +265,11 @@ fn pyobject_into_configuration(config: PyObject) -> Config {
     Config {
         application_name,
         application_version,
-        engine_mode,
         window_width,
         window_height,
         window_resizable,
         viewport_width,
         viewport_height,
-        blend_mode,
         tileset_width,
         tileset_height,
         tileset_path,
