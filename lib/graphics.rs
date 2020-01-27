@@ -18,7 +18,7 @@ use std::str;
 
 pub struct Context {
     pub windowed_context: WindowedContext<PossiblyCurrent>,
-    framebuffer_size: (f32, f32),
+    framebuffer_size: (u32, u32),
     tileset: Option<Tileset>,
     viewport: Viewport,
     scene: Scene,
@@ -58,7 +58,7 @@ impl Context {
 
         gl_log_info();
 
-        let framebuffer_size = (window_size.width as f32, window_size.height as f32);
+        let framebuffer_size = (window_size.width as u32, window_size.height as u32);
 
         let tileset = None;
 
@@ -72,7 +72,7 @@ impl Context {
         pyrite_log!("Loading shaders...");
         let shader = Shader::new(
             include_str!("pass_through.vert"),
-            include_str!("tile_render.frag"),
+            include_str!("pixel_render.frag"),
         );
 
         let pending_render = true;
@@ -161,7 +161,7 @@ impl Context {
 
     pub fn resize_framebuffer(&mut self, width: i32, height: i32) {
         unsafe {
-            self.framebuffer_size = (width as f32, height as f32);
+            self.framebuffer_size = (width as u32, height as u32);
             gl::Viewport(0, 0, width, height);
 
             // Render the scene at the new resolution
@@ -198,10 +198,18 @@ impl Context {
             self.shader.bind();
 
             self.shader
-                .set_uniform_2f("viewport_size", self.viewport.get_f32());
+                .set_uniform_2u("viewport_size", self.viewport.get_u32());
 
             self.shader
-                .set_uniform_2f("tileset_size", tileset.get_dimensions_f32());
+                .set_uniform_2u("tileset_size", tileset.get_dimensions_u32());
+
+            self.shader
+                .set_uniform_2u("framebuffer_size", self.framebuffer_size);
+
+            self.shader
+                .set_uniform_2i("tile_size", tileset.get_tile_dimensions_i32());
+
+            self.shader.set_uniform_1u("scale", 3);
 
             // set tileset texture to texture unit 0
             self.shader.set_uniform_1i("tileset", 0);
@@ -252,6 +260,10 @@ impl Viewport {
 
     pub fn get(&self) -> (i32, i32) {
         (self.width, self.height)
+    }
+
+    pub fn get_u32(&self) -> (u32, u32) {
+        (self.width as u32, self.height as u32)
     }
 
     pub fn get_f32(&self) -> (f32, f32) {
@@ -492,33 +504,38 @@ impl Scene {
 
 struct Tileset {
     pub texture: Texture,
-    dimensions: (u32, u32),
+    set_dimensions: (u32, u32),
+    tile_dimensions: (u32, u32),
     names_to_positions: HashMap<String, (f32, f32)>,
 }
 
 impl Tileset {
     fn new(
         image: &image::DynamicImage,
-        dimensions: (u32, u32),
+        set_dimensions: (u32, u32),
         mut tile_names: Vec<String>,
     ) -> Self {
         let texture = Texture::from_image(image);
         let tileset_image_dimensions = image.dimensions();
-        let tile_size = (
-            tileset_image_dimensions.0 / dimensions.0,
-            tileset_image_dimensions.1 / dimensions.1,
+        let tile_dimensions = (
+            tileset_image_dimensions.0 / set_dimensions.0,
+            tileset_image_dimensions.1 / set_dimensions.1,
         );
         let mut names_to_positions = HashMap::new();
 
         tile_names.reverse();
 
         // iterate each tile
-        for tile_y in 0..dimensions.1 {
-            for tile_x in 0..dimensions.0 {
+        for tile_y in 0..set_dimensions.1 {
+            for tile_x in 0..set_dimensions.0 {
                 let mut tile_filled = false;
                 // iterate each pixel of each tile
-                'pixels: for tile_pixel_x in (0..tile_size.0).map(|x| x + tile_x * tile_size.0) {
-                    for tile_pixel_y in (0..tile_size.1).map(|y| y + tile_y * tile_size.1) {
+                'pixels: for tile_pixel_x in
+                    (0..tile_dimensions.0).map(|x| x + tile_x * tile_dimensions.0)
+                {
+                    for tile_pixel_y in
+                        (0..tile_dimensions.1).map(|y| y + tile_y * tile_dimensions.1)
+                    {
                         // check if pixel has colour
                         if image
                             .get_pixel(tile_pixel_x, tile_pixel_y)
@@ -544,19 +561,24 @@ impl Tileset {
 
         Self {
             texture,
-            dimensions,
+            set_dimensions,
+            tile_dimensions,
             names_to_positions,
         }
     }
 
-    fn get_dimensions_f32(&self) -> (f32, f32) {
-        (self.dimensions.0 as f32, self.dimensions.1 as f32)
+    fn get_dimensions_u32(&self) -> (u32, u32) {
+        self.set_dimensions
+    }
+
+    fn get_tile_dimensions_i32(&self) -> (i32, i32) {
+        (self.tile_dimensions.0 as i32, self.tile_dimensions.1 as i32)
     }
 
     fn get_tile_location(&self, tile_name: &str) -> Option<(f32, f32)> {
         match tile_name {
-            "none" => Some((-1., 0.)),
-            "fill" => Some((-2., 0.)),
+            "none" => Some((-1.0, 0.0)),
+            "fill" => Some((-2.0, 0.0)),
             _ => self.names_to_positions.get(tile_name).cloned(),
         }
     }
@@ -926,6 +948,33 @@ impl Shader {
             let location = gl::GetUniformLocation(self.program, name.as_ptr());
 
             gl::Uniform1i(location, value);
+        }
+    }
+
+    pub fn set_uniform_1u(&self, name: &str, value: u32) {
+        unsafe {
+            let name = ffi::CString::new(name).unwrap();
+            let location = gl::GetUniformLocation(self.program, name.as_ptr());
+
+            gl::Uniform1ui(location, value);
+        }
+    }
+
+    pub fn set_uniform_2u(&self, name: &str, value: (u32, u32)) {
+        unsafe {
+            let name = ffi::CString::new(name).unwrap();
+            let location = gl::GetUniformLocation(self.program, name.as_ptr());
+
+            gl::Uniform2ui(location, value.0, value.1);
+        }
+    }
+
+    pub fn set_uniform_2i(&self, name: &str, value: (i32, i32)) {
+        unsafe {
+            let name = ffi::CString::new(name).unwrap();
+            let location = gl::GetUniformLocation(self.program, name.as_ptr());
+
+            gl::Uniform2i(location, value.0, value.1);
         }
     }
 
