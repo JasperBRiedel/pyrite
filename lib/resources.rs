@@ -1,3 +1,4 @@
+use crate::pyrite_log;
 use std::fs;
 use std::io::Read;
 use std::path::PathBuf;
@@ -39,5 +40,38 @@ impl Provider for FilesystemProvider {
 
     fn exists(&self, path: &str) -> bool {
         self.root_path.join(path).exists()
+    }
+}
+
+pub struct PackagedProvider {}
+
+impl PackagedProvider {
+    pub fn create_packaged_data(root_path: PathBuf) -> Option<Vec<u8>> {
+        pyrite_log!("Starting resource packager...");
+
+        if !root_path.is_dir() {
+            pyrite_log!("Resource directory expected: {}", root_path.display());
+            return None;
+        }
+
+        // try the access the resources directory, and create an iterator of top level files.
+        let resource_files = if let Ok(resources_dir) = root_path.read_dir() {
+            resources_dir
+                .filter_map(|entry| entry.ok().map(|e| e.path()))
+                .filter(|path| path.is_file())
+                .filter_map(|file_path| {
+                    file_path
+                        .file_name()
+                        .and_then(|os_str| os_str.to_owned().into_string().ok())
+                        .map(|file_name| (file_path, file_name))
+                })
+        } else {
+            pyrite_log!("Resource directory expected: {}", root_path.display());
+            return None;
+        };
+
+        for (resource_path, resource_name) in resource_files {}
+
+        return None;
     }
 }

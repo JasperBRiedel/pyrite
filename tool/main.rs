@@ -2,6 +2,9 @@ use std::env;
 use std::fs;
 use std::io;
 use std::io::Write;
+use std::path::PathBuf;
+
+use pyrite::resources;
 
 fn main() {
     let args: Vec<String> = env::args().skip(1).collect();
@@ -24,12 +27,17 @@ fn evaluate_command(mut command_with_args: Vec<String>) {
         "help" => display_help(),
         "new" | "run" | "build" => {
             let project_path = join_strings(&args, "-");
+            let tool_exe = env::current_exe().expect("failed to locate pyrite executable");
+            let tool_dir = tool_exe
+                .parent()
+                .expect("failed to extract pyrite directory");
+            let project_dir = tool_dir.join("projects").join(project_path);
             let project_name = join_strings(&args, " ");
 
             match command.as_str() {
-                "new" => new_command(project_name, project_path),
-                "run" => run_command(project_name, project_path),
-                "build" => build_command(project_name, project_path),
+                "new" => new_command(project_name, project_dir),
+                "run" => run_command(project_name, project_dir),
+                "build" => build_command(project_name, project_dir),
                 _ => unreachable!(),
             }
         }
@@ -102,21 +110,13 @@ fn join_strings(strings: &Vec<String>, seperator: &str) -> String {
     joined_string
 }
 
-fn new_command(project_name: String, project_path: String) {
+fn new_command(project_name: String, project_dir: PathBuf) {
     if project_name.len() <= 0 {
         println!("Please provide a project name, type 'help' for a list of commands.");
         return;
     }
 
     println!("Creating project \"{}\"", project_name);
-
-    let tool_exe = env::current_exe().expect("failed to locate pyrite executable");
-
-    let tool_dir = tool_exe
-        .parent()
-        .expect("failed to extract pyrite directory");
-
-    let project_dir = tool_dir.join("projects").join(project_path);
 
     if project_dir.exists() {
         println!("A project with that name already exists, type 'help' for a list of commands");
@@ -141,19 +141,11 @@ fn new_command(project_name: String, project_path: String) {
     println!("Project created at \"{}\"", project_dir.display());
 }
 
-fn run_command(project_name: String, project_path: String) {
+fn run_command(project_name: String, project_dir: PathBuf) {
     if project_name.len() <= 0 {
         println!("Please provide a project name, type 'help' for a list of commands.");
         return;
     }
-
-    let tool_exe = env::current_exe().expect("failed to locate pyrite executable");
-
-    let tool_dir = tool_exe
-        .parent()
-        .expect("failed to extract pyrite directory");
-
-    let project_dir = tool_dir.join("projects").join(project_path.clone());
 
     if !project_dir.exists() {
         println!(
@@ -169,6 +161,11 @@ fn run_command(project_name: String, project_path: String) {
     pyrite::start(resources);
 }
 
-fn build_command(project_name: String, project_path: String) {
-    println!("building project {} - {}", project_name, project_path);
+fn build_command(project_name: String, project_dir: PathBuf) {
+    println!(
+        "building project {} - {}",
+        project_name,
+        project_dir.display()
+    );
+    resources::PackagedProvider::create_packaged_data(project_dir);
 }
