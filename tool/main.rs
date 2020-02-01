@@ -178,6 +178,7 @@ fn build_command(project_name: String, project_path: String, project_dir: PathBu
         return;
     };
 
+    pyrite_log!("Creating windows build");
     write_player_binary(
         &project_path,
         format!("{}-win.exe", project_path),
@@ -185,14 +186,13 @@ fn build_command(project_name: String, project_path: String, project_dir: PathBu
         &packaged_bytes,
     );
 
+    pyrite_log!("Creating linux build");
     write_player_binary(
         &project_path,
         format!("{}-linux", project_path),
         include_bytes!("../template/player-linux"),
         &packaged_bytes,
     );
-
-    pyrite_log!("Build complete");
 }
 
 fn write_player_binary(
@@ -201,6 +201,12 @@ fn write_player_binary(
     binary_bytes: &[u8],
     resources_bytes: &[u8],
 ) {
+    if binary_bytes.len() <= 0 {
+        pyrite_log!("This version of pyrite can't build game executables");
+        pyrite_log!("Please visit the store page to purchase the full version");
+        return;
+    }
+
     let tool_exe = env::current_exe().expect("failed to locate pyrite executable");
     let tool_dir = tool_exe
         .parent()
