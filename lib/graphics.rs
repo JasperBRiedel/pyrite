@@ -35,6 +35,7 @@ impl Context {
     ) -> Self {
         let window_builder = WindowBuilder::new()
             .with_title(&config.application_name)
+            .with_visible(false)
             .with_resizable(false);
 
         pyrite_log!("Loading graphics context");
@@ -85,6 +86,9 @@ impl Context {
         let pending_render = true;
 
         pyrite_log!("Graphics context created");
+
+        // only show the window after everything is set-up and the framebuffer size as been set.
+        windowed_context.window().set_visible(true);
 
         Context {
             windowed_context,
