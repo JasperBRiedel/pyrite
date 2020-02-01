@@ -51,7 +51,6 @@ pub enum Event {
     Button { button: String, transition: String },
     Scroll { x: i32, y: i32 },
     Text { text: String },
-    Resized { width: i32, height: i32 },
 }
 
 pub struct Engine {
@@ -79,18 +78,27 @@ impl Engine {
 
     // API Function
     pub fn run(&mut self, config: Config) -> bool {
+        // if config is none then this is the first call to run.
+        // on the first call we load the configuration and initialise the graphics context.
         if self.config.is_none() {
             pyrite_log!("Loading configuration");
             log_config(&config);
             self.config = Some(config);
 
-            self.initialise();
+            let graphics_context = graphics::Context::new(
+                self.config.as_ref().unwrap(),
+                &self.platform,
+                &self.resources,
+            );
+
+            self.graphics_context = Some(graphics_context);
         }
 
+        // Render a frame to the screen
         let frame_presented = self.graphics_context.as_mut().unwrap().present_frame();
 
         // The renderer optimises and will sometimes choose not to render or swap buffers, in this
-        // case we will sleep the program for a moment if v-sync is enabled to give the cpu a
+        // case we will sleep the program for a moment when v-sync is enabled to give the cpu a
         // break.
         if !frame_presented {
             thread::sleep(Duration::from_millis(8));
@@ -114,7 +122,7 @@ impl Engine {
                 Timestep::new()
             });
 
-        self.platform.service(&mut self.graphics_context);
+        self.platform.service();
 
         let should_step = timestep.step(interval);
 
@@ -202,25 +210,9 @@ impl Engine {
         self.resources.exists(&path)
     }
 
-    fn initialise(&mut self) {
-        // initialise renderer
-        let graphics_context = graphics::Context::new(
-            self.config.as_ref().unwrap(),
-            &self.platform,
-            &self.resources,
-        );
-
-        let config = self
-            .config
-            .as_ref()
-            .expect("tried to initialise renderer without configuration being loaded first");
-
-        self.graphics_context = Some(graphics_context);
-    }
-
     pub fn clean(&mut self) {
         self.graphics_context.take();
-        self.platform.service(&mut None);
+        self.platform.service();
     }
 }
 

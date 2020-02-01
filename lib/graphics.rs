@@ -5,8 +5,8 @@ use crate::resources;
 use gl;
 use gl::types::*;
 use glutin::{
-    dpi::LogicalSize, dpi::PhysicalSize, window::WindowBuilder, Api, ContextBuilder, GlProfile,
-    GlRequest, PossiblyCurrent, WindowedContext,
+    dpi::PhysicalSize, window::WindowBuilder, Api, ContextBuilder, GlProfile, GlRequest,
+    PossiblyCurrent, WindowedContext,
 };
 use image::GenericImageView;
 use image::Pixel;

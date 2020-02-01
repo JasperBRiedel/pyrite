@@ -1,5 +1,4 @@
 use crate::engine;
-use crate::graphics;
 use crate::graphics::Viewport;
 use glutin::dpi::PhysicalSize;
 use glutin::event::{
@@ -49,7 +48,7 @@ impl Platform {
         }
     }
 
-    pub fn service(&mut self, graphics_context: &mut Option<graphics::Context>) {
+    pub fn service(&mut self) {
         // We need to remove the events loop from self as we pass self into a closure passed to
         // run_return and this causes borrow checker issues. This isn't optimal, but it's better
         // than buffering all the events first like in commit d88f27c. It also allows as to react
