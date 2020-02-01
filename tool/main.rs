@@ -5,6 +5,7 @@ use std::io;
 use std::io::Write;
 use std::path::PathBuf;
 
+use pyrite::pyrite_log;
 use pyrite::resources;
 
 fn main() {
@@ -42,12 +43,12 @@ fn evaluate_command(mut command_with_args: Vec<String>) {
                 _ => unreachable!(),
             }
         }
-        _ => println!("Unknown command, type 'help' for a list of commands."),
+        _ => pyrite_log!("Unknown command, type 'help' for a list of commands."),
     }
 }
 
 fn interactive_mode() -> bool {
-    print!("pyrite> ");
+    print!("> ");
     io::stdout()
         .flush()
         .expect("failed to flush output before read");
@@ -64,7 +65,7 @@ fn interactive_mode() -> bool {
             return false;
         }
     } else {
-        println!("Please enter a command, type 'help' for a list of commands.");
+        pyrite_log!("Please enter a command, type 'help' for a list of commands.");
         return true;
     }
 
@@ -75,7 +76,7 @@ fn interactive_mode() -> bool {
 
 fn display_help() {
     println!(
-        r#"Pyrite engine CLI tool v0.1.0
+        r#"Pyrite engine CLI tool v0.2.0
 
 Commands:
     Create new project
@@ -113,14 +114,12 @@ fn join_strings(strings: &Vec<String>, seperator: &str) -> String {
 
 fn new_command(project_name: String, project_dir: PathBuf) {
     if project_name.len() <= 0 {
-        println!("Please provide a project name, type 'help' for a list of commands.");
+        pyrite_log!("Please provide a project name, type 'help' for a list of commands.");
         return;
     }
 
-    println!("Creating project \"{}\"", project_name);
-
     if project_dir.exists() {
-        println!("A project with that name already exists, type 'help' for a list of commands");
+        pyrite_log!("A project with that name already exists, type 'help' for a list of commands");
         return;
     }
 
@@ -139,41 +138,40 @@ fn new_command(project_name: String, project_dir: PathBuf) {
         .write_all(tileset_template)
         .expect("failed to write tiles.png");
 
-    println!("Project created at \"{}\"", project_dir.display());
+    pyrite_log!("Created project \"{}\"", project_name);
+    pyrite_log!("{}", project_dir.display());
 }
 
 fn run_command(project_name: String, project_dir: PathBuf) {
     if project_name.len() <= 0 {
-        println!("Please provide a project name, type 'help' for a list of commands.");
+        pyrite_log!("Please provide a project name, type 'help' for a list of commands.");
         return;
     }
 
     if !project_dir.exists() {
-        println!(
+        pyrite_log!(
             "Failed to find project with name \"{}\", type 'help' for a list of commands",
             project_name
         );
         return;
     }
 
-    println!("Running {} - \"{}\"", project_name, project_dir.display());
+    pyrite_log!("Running {}", project_name);
+    pyrite_log!("{}", project_dir.display());
 
     let resources = pyrite::resources::FilesystemProvider::new(project_dir);
     pyrite::start(resources);
 }
 
 fn build_command(project_name: String, project_path: String, project_dir: PathBuf) {
-    println!(
-        "building project {} - {}",
-        project_name,
-        project_dir.display()
-    );
+    pyrite_log!("Building project {}", project_name,);
+    pyrite_log!("{}", project_dir.display());
 
     // create resource package
     let packaged_bytes = if let Some(packaged_bytes) =
         resources::PackagedProvider::create_packaged_data(project_dir)
     {
-        println!("Resource package created");
+        pyrite_log!("Resource package created");
         packaged_bytes
     } else {
         return;
@@ -190,6 +188,8 @@ fn build_command(project_name: String, project_path: String, project_dir: PathBu
         include_bytes!("../template/player-linux"),
         &packaged_bytes,
     );
+
+    pyrite_log!("Build complete");
 }
 
 fn write_player_binary(binary_name: String, binary_bytes: &[u8], resources_bytes: &[u8]) {
@@ -210,26 +210,27 @@ fn write_player_binary(binary_name: String, binary_bytes: &[u8], resources_bytes
     match player_binary_file {
         Ok(mut file) => {
             if let Err(e) = file.write_all(binary_bytes) {
-                println!(
+                pyrite_log!(
                     "Failed to write to binary {} {}",
                     player_binary_path.display(),
                     e
                 );
             }
             if let Err(e) = file.write_all(resources_bytes) {
-                println!(
+                pyrite_log!(
                     "Failed to write resources {} {}",
                     player_binary_path.display(),
                     e
                 );
             }
         }
-        Err(e) => println!(
+        Err(e) => pyrite_log!(
             "Failed to open binary for writing {} {}",
             player_binary_path.display(),
             e
         ),
     }
 
-    println!("Created binary \"{}\"", player_binary_path.display());
+    pyrite_log!("Created binary \"{}\"", binary_name);
+    pyrite_log!("{}", player_binary_path.display());
 }
