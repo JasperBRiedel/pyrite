@@ -3,7 +3,7 @@ use std::fs;
 use std::fs::OpenOptions;
 use std::io;
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use pyrite::pyrite_log;
 use pyrite::resources;
@@ -179,12 +179,14 @@ fn build_command(project_name: String, project_path: String, project_dir: PathBu
     };
 
     write_player_binary(
+        &project_path,
         format!("{}-win.exe", project_path),
         include_bytes!("../template/player-windows.exe"),
         &packaged_bytes,
     );
 
     write_player_binary(
+        &project_path,
         format!("{}-linux", project_path),
         include_bytes!("../template/player-linux"),
         &packaged_bytes,
@@ -193,13 +195,26 @@ fn build_command(project_name: String, project_path: String, project_dir: PathBu
     pyrite_log!("Build complete");
 }
 
-fn write_player_binary(binary_name: String, binary_bytes: &[u8], resources_bytes: &[u8]) {
+fn write_player_binary(
+    project_path: &str,
+    binary_name: String,
+    binary_bytes: &[u8],
+    resources_bytes: &[u8],
+) {
     let tool_exe = env::current_exe().expect("failed to locate pyrite executable");
     let tool_dir = tool_exe
         .parent()
         .expect("failed to extract pyrite directory");
-    let builds_path = tool_dir.join("builds");
+    let builds_path = tool_dir.join("builds").join(project_path);
     fs::create_dir_all(&builds_path).expect("failed to create build directory");
+    try_copy(
+        &tool_dir.join("python38.zip"),
+        &builds_path.join("python38.zip"),
+    );
+    try_copy(
+        &tool_dir.join("python38.dll"),
+        &builds_path.join("python38.dll"),
+    );
     let player_binary_path = builds_path.join(&binary_name);
 
     let player_binary_file = OpenOptions::new()
@@ -234,4 +249,10 @@ fn write_player_binary(binary_name: String, binary_bytes: &[u8], resources_bytes
 
     pyrite_log!("Created binary \"{}\"", binary_name);
     pyrite_log!("{}", player_binary_path.display());
+}
+
+fn try_copy(source: &Path, destination: &Path) {
+    if let Err(_) = fs::copy(source, destination) {
+        pyrite_log!("WARN > Failed to copy build file {}", source.display())
+    }
 }
