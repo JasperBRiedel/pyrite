@@ -101,7 +101,8 @@ impl PackagedProvider {
             }
         }
 
-        let package_data_length: u64 = package_data.len() as u64;
+        // add 8 bytes of length to include these bytes in the total length
+        let package_data_length: u64 = package_data.len() as u64 + 8;
 
         package_data.extend_from_slice(&package_data_length.to_be_bytes());
 
