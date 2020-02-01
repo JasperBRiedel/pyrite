@@ -1,3 +1,6 @@
+use pyrite;
+use pyrite::resources::PackagedProvider;
+
 fn main() {
-    println!("Hello, player!");
+    pyrite::start(PackagedProvider::new());
 }

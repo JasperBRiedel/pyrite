@@ -46,7 +46,25 @@ impl Provider for FilesystemProvider {
 
 pub struct PackagedProvider {}
 
+impl Provider for PackagedProvider {
+    fn read_to_string(&self, path: &str) -> Option<String> {
+        None
+    }
+
+    fn read_to_bytes(&self, path: &str) -> Option<Vec<u8>> {
+        None
+    }
+
+    fn exists(&self, path: &str) -> bool {
+        false
+    }
+}
+
 impl PackagedProvider {
+    pub fn new() -> Self {
+        todo!()
+    }
+
     pub fn create_packaged_data(root_path: PathBuf) -> Option<Vec<u8>> {
         pyrite_log!("Starting resource packager...");
 
