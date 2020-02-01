@@ -1,5 +1,6 @@
 use crate::pyrite_log;
 use std::fs;
+use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
 
@@ -70,8 +71,40 @@ impl PackagedProvider {
             return None;
         };
 
-        for (resource_path, resource_name) in resource_files {}
+        // package_data has the following repeating structure
+        // resource_name_length: u32
+        // resource_name: resource_name_length
+        // resource_length: u64
+        // resource_data: resource_length
+        // ..
+        // resource_package_len: u64
+        let mut package_data = Vec::new();
 
-        return None;
+        for (resource_path, resource_name) in resource_files {
+            if let Ok(mut resource_file) = File::open(resource_path) {
+                let mut resource_data = Vec::new();
+                match resource_file.read_to_end(&mut resource_data) {
+                    Ok(bytes_read) => pyrite_log!("Packaging {} {}b", resource_name, bytes_read),
+                    Err(e) => {
+                        pyrite_log!("Failed {} {}", resource_name, e);
+                        return None;
+                    }
+                }
+                let resource_data_length: u64 = resource_data.len() as u64;
+                let mut resource_name_data = resource_name.as_bytes().to_vec();
+                let resource_name_data_length: u32 = resource_name_data.len() as u32;
+
+                package_data.extend_from_slice(&resource_name_data_length.to_be_bytes());
+                package_data.append(&mut resource_name_data);
+                package_data.extend_from_slice(&resource_data_length.to_be_bytes());
+                package_data.append(&mut resource_data);
+            }
+        }
+
+        let package_data_length: u64 = package_data.len() as u64;
+
+        package_data.extend_from_slice(&package_data_length.to_be_bytes());
+
+        return Some(package_data);
     }
 }

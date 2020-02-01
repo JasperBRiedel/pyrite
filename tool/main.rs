@@ -167,5 +167,16 @@ fn build_command(project_name: String, project_dir: PathBuf) {
         project_name,
         project_dir.display()
     );
-    resources::PackagedProvider::create_packaged_data(project_dir);
+
+    // create resource package
+    let packaged_bytes = if let Some(packaged_bytes) =
+        resources::PackagedProvider::create_packaged_data(project_dir)
+    {
+        println!("Resource package created");
+        packaged_bytes
+    } else {
+        return;
+    };
+
+    dbg!(packaged_bytes);
 }
