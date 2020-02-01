@@ -1,7 +1,9 @@
 use crate::pyrite_log;
+use std::collections::HashMap;
+use std::env;
 use std::fs;
 use std::fs::File;
-use std::io::Read;
+use std::io::{Read, Seek, SeekFrom};
 use std::path::PathBuf;
 
 pub trait Provider {
@@ -44,25 +46,108 @@ impl Provider for FilesystemProvider {
     }
 }
 
-pub struct PackagedProvider {}
+pub struct PackagedProvider {
+    package_path: PathBuf,
+    resource_index: HashMap<String, Vec<u8>>,
+}
 
 impl Provider for PackagedProvider {
     fn read_to_string(&self, path: &str) -> Option<String> {
-        None
+        self.read_to_bytes(path)
+            .and_then(|bytes| String::from_utf8(bytes).ok())
     }
 
     fn read_to_bytes(&self, path: &str) -> Option<Vec<u8>> {
-        None
+        self.resource_index.get(path).cloned()
     }
 
     fn exists(&self, path: &str) -> bool {
-        false
+        self.resource_index.contains_key(path)
     }
 }
 
 impl PackagedProvider {
     pub fn new() -> Self {
-        todo!()
+        let package_path = dbg!(env::current_exe().expect("failed to locate pyrite executable"));
+        // useful for testing. Loads the resource package of another project.
+        // use std::str::FromStr;
+        // let package_path =
+        //     String::from("/home/jasper/projects/rust/pyrite/target/debug/builds/packaged-linux")
+        //         .into();
+
+        let mut resource_index = HashMap::new();
+
+        let mut shared_binary =
+            fs::File::open(&package_path).expect("failed to open binary resources");
+
+        // discover resource offset
+        shared_binary.seek(SeekFrom::End(-8));
+        let mut resources_offset_bytes = [0u8; 8];
+        shared_binary
+            .read_exact(&mut resources_offset_bytes)
+            .expect("failed to read resource offset");
+        let resources_offset = u64::from_be_bytes(resources_offset_bytes);
+
+        // discover resource count
+        shared_binary.seek(SeekFrom::End(-12));
+        let mut resource_count_bytes = [0u8; 4];
+        shared_binary
+            .read_exact(&mut resource_count_bytes)
+            .expect("failed to read resource count");
+        let resource_count = u32::from_be_bytes(resource_count_bytes);
+
+        // seek backward to the start of the resources section
+        shared_binary.seek(SeekFrom::End(-(resources_offset as i64)));
+
+        // walk resources and set-up index table
+        for _ in 0..resource_count {
+            // read name length
+            let mut name_length_bytes = [0u8; 4];
+            shared_binary
+                .read_exact(&mut name_length_bytes)
+                .expect("failed to read name length");
+            let name_length = u32::from_be_bytes(name_length_bytes);
+
+            dbg!(name_length);
+
+            // read resource name
+            let mut name_bytes = Vec::new();
+            shared_binary
+                .by_ref()
+                .take(name_length as u64)
+                .read_to_end(&mut name_bytes)
+                .expect("failed to read resource name");
+            let resource_name =
+                String::from_utf8(name_bytes).expect("failed to decode resource name");
+
+            dbg!(&resource_name);
+
+            // read resource length
+            let mut resource_length_bytes = [0u8; 8];
+            shared_binary
+                .read_exact(&mut resource_length_bytes)
+                .expect("failed to read name length");
+            let resource_length = u64::from_be_bytes(resource_length_bytes);
+
+            dbg!(resource_length);
+
+            // read resource
+            let mut resource_bytes = Vec::new();
+            shared_binary
+                .by_ref()
+                .take(resource_length)
+                .read_to_end(&mut resource_bytes)
+                .expect("failed to read resource name");
+
+            dbg!(resource_bytes.len());
+
+            resource_index.insert(resource_name, resource_bytes);
+        }
+
+        Self {
+            package_path,
+            resource_index,
+        }
     }
 
     pub fn create_packaged_data(root_path: PathBuf) -> Option<Vec<u8>> {
@@ -95,8 +180,10 @@ impl PackagedProvider {
         // resource_length: u64
         // resource_data: resource_length
         // ..
+        // resource_count: u32
         // resource_package_len: u64
         let mut package_data = Vec::new();
+        let mut resource_count: u32 = 0;
 
         for (resource_path, resource_name) in resource_files {
             if let Ok(mut resource_file) = File::open(resource_path) {
@@ -116,13 +203,18 @@ impl PackagedProvider {
                 package_data.append(&mut resource_name_data);
                 package_data.extend_from_slice(&resource_data_length.to_be_bytes());
                 package_data.append(&mut resource_data);
+
+                resource_count += 1;
             }
         }
 
-        // add 8 bytes of length to include these bytes in the total length
-        let package_data_length: u64 = package_data.len() as u64 + 8;
+        // add 12 bytes to offset the resource_package_len and resource_count bytes.
+        let package_data_length: u64 = package_data.len() as u64 + 12;
 
+        package_data.extend_from_slice(&resource_count.to_be_bytes());
         package_data.extend_from_slice(&package_data_length.to_be_bytes());
+
+        pyrite_log!("Total: {}", package_data_length);
 
         return Some(package_data);
     }
