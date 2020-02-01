@@ -33,7 +33,9 @@ impl Context {
         platform: &platform::Platform,
         resources: &Box<dyn resources::Provider>,
     ) -> Self {
-        let window_builder = WindowBuilder::new().with_title(&config.application_name);
+        let window_builder = WindowBuilder::new()
+            .with_title(&config.application_name)
+            .with_resizable(false);
 
         pyrite_log!("Loading graphics context");
         let windowed_context = unsafe {
