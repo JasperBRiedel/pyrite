@@ -47,7 +47,6 @@ impl Provider for FilesystemProvider {
 }
 
 pub struct PackagedProvider {
-    package_path: PathBuf,
     resource_index: HashMap<String, Vec<u8>>,
 }
 
@@ -81,7 +80,9 @@ impl PackagedProvider {
             fs::File::open(&package_path).expect("failed to open binary resources");
 
         // discover resource offset
-        shared_binary.seek(SeekFrom::End(-8));
+        shared_binary
+            .seek(SeekFrom::End(-8))
+            .expect("failed to seek to resources offset location");
         let mut resources_offset_bytes = [0u8; 8];
         shared_binary
             .read_exact(&mut resources_offset_bytes)
@@ -89,7 +90,9 @@ impl PackagedProvider {
         let resources_offset = u64::from_be_bytes(resources_offset_bytes);
 
         // discover resource count
-        shared_binary.seek(SeekFrom::End(-12));
+        shared_binary
+            .seek(SeekFrom::End(-12))
+            .expect("failed to seek to resources count location");
         let mut resource_count_bytes = [0u8; 4];
         shared_binary
             .read_exact(&mut resource_count_bytes)
@@ -97,7 +100,9 @@ impl PackagedProvider {
         let resource_count = u32::from_be_bytes(resource_count_bytes);
 
         // seek backward to the start of the resources section
-        shared_binary.seek(SeekFrom::End(-(resources_offset as i64)));
+        shared_binary
+            .seek(SeekFrom::End(-(resources_offset as i64)))
+            .expect("failed to seek to resources start offset");
 
         // walk resources and set-up index table
         for _ in 0..resource_count {
@@ -144,10 +149,7 @@ impl PackagedProvider {
             resource_index.insert(resource_name, resource_bytes);
         }
 
-        Self {
-            package_path,
-            resource_index,
-        }
+        Self { resource_index }
     }
 
     pub fn create_packaged_data(root_path: PathBuf) -> Option<Vec<u8>> {
