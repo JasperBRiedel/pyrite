@@ -13,7 +13,6 @@ use std::collections::{HashMap, VecDeque};
 
 pub struct Platform {
     pub events: Option<EventLoop<()>>,
-    pub hidpi_scale_factor: f64,
     button_states: HashMap<String, ButtonState>,
     logical_mouse_position: (i32, i32),
     smooth_mouse_scroll_accumulator: (f32, f32),
@@ -42,7 +41,6 @@ impl Platform {
 
         Self {
             events,
-            hidpi_scale_factor: 1.,
             button_states,
             logical_mouse_position: (0, 0),
             smooth_mouse_scroll_accumulator: (0., 0.),
@@ -63,24 +61,14 @@ impl Platform {
             *control_flow = ControlFlow::Exit;
             match event {
                 Event::WindowEvent { event, .. } => match event {
-                    WindowEvent::Resized(physical_size) => {
-                        if let Some(context) = graphics_context.as_mut() {
-                            context.resize_framebuffer(
-                                physical_size.width as i32,
-                                physical_size.height as i32,
-                            );
-
-                            // Render a new frame to the resized framebuffer.
-                            // the scene will be streched to fit, but this is better than having
-                            // large black regions of the window while resizing.
-                            context.present_frame();
-
-                            self.engine_event_queue.push_back(engine::Event::Resized {
-                                width: physical_size.width as i32,
-                                height: physical_size.height as i32,
-                            });
-                        }
-                    }
+                    WindowEvent::Resized(physical_framebuffer_size) => unsafe {
+                        gl::Viewport(
+                            0,
+                            0,
+                            physical_framebuffer_size.width as i32,
+                            physical_framebuffer_size.height as i32,
+                        );
+                    },
                     WindowEvent::CloseRequested => {
                         self.close_requested = true;
                     }
@@ -226,7 +214,7 @@ impl Platform {
             self.logical_mouse_position.1 as f32 / window_size.height as f32,
         );
 
-        let (viewport_width, viewport_height) = viewport.get_f32();
+        let (viewport_width, viewport_height) = viewport.get_dimensions_f32();
 
         (
             (normalised_mouse_position.0 * viewport_width) as i32,

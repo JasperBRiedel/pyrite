@@ -10,9 +10,7 @@ use std::time::{Duration, Instant};
 pub struct Config {
     pub application_name: String,
     pub application_version: String,
-    pub window_width: u32,
-    pub window_height: u32,
-    pub window_resizable: bool,
+    pub viewport_scale: i32,
     pub viewport_width: i32,
     pub viewport_height: i32,
     pub tileset_width: u32,
@@ -150,10 +148,10 @@ impl Engine {
     }
 
     // API Function
-    pub fn set_viewport(&mut self, width: i32, height: i32) {
+    pub fn set_viewport(&mut self, width: i32, height: i32, scale: i32) {
         if let Some(context) = &mut self.graphics_context {
             pyrite_log!("Viewport dimensions updated: ({}, {})", width, height);
-            context.set_viewport(width, height);
+            context.set_viewport(width, height, scale);
         }
     }
 
@@ -206,16 +204,16 @@ impl Engine {
 
     fn initialise(&mut self) {
         // initialise renderer
-        let mut graphics_context =
-            graphics::Context::new(self.config.as_ref().unwrap(), &self.platform);
+        let graphics_context = graphics::Context::new(
+            self.config.as_ref().unwrap(),
+            &self.platform,
+            &self.resources,
+        );
 
         let config = self
             .config
             .as_ref()
             .expect("tried to initialise renderer without configuration being loaded first");
-
-        // load tile sets into renderer
-        graphics_context.load_tileset(&config, &self.resources);
 
         self.graphics_context = Some(graphics_context);
     }
@@ -235,9 +233,7 @@ fn log_config(config: &Config) {
 
     log_config_item!(config, application_name);
     log_config_item!(config, application_version);
-    log_config_item!(config, window_width);
-    log_config_item!(config, window_height);
-    log_config_item!(config, window_resizable);
+    log_config_item!(config, viewport_scale);
     log_config_item!(config, viewport_width);
     log_config_item!(config, viewport_height);
     log_config_item!(config, tileset_width);

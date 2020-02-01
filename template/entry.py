@@ -8,13 +8,8 @@ config = {
     # Application version
     "application_version": "0.1.0",
 
-    # Determines the initial window size in pixels
-    "window_width": 320,
-    "window_height": 320,
-    # Determines if the window can be freely resized by the user
-    "window_resizable": True,
-
-    # Determines the initial viewport size
+    # Determines the initial viewport size and scale
+    "viewport_scale": 2,
     "viewport_width": 10,
     "viewport_height": 10,
 
@@ -38,16 +33,35 @@ config = {
     ]
 }
 
+
 def __entry__():
+    width = config["viewport_width"]
+    height = config["viewport_height"]
+    scale = config["viewport_scale"]
+
     # All application logic should exist within the engine loop below
     while pyrite.run(config):
 
-        # handle engine events such as input and window resizing
         for event in pyrite.poll_events():
             print(f"Received event: {event}")
             if event["type"] == "button":
                 if event["button"] == "escape":
                     pyrite.exit()
+
+                if event["transition"] == "pressed":
+                    if event["button"] == "q":
+                        width += 1
+                    if event["button"] == "w":
+                        width -= 1
+                    if event["button"] == "a":
+                        height += 1
+                    if event["button"] == "s":
+                        height -= 1
+                    if event["button"] == "z":
+                        scale += 1
+                    if event["button"] == "x":
+                        scale -= 1
+                    pyrite.set_viewport(width, height, scale)
 
         # create a main loop that runs 5 times per second
         while pyrite.timestep("main", 5):
@@ -72,12 +86,10 @@ def __entry__():
                             (False, False),
                         );
 
-            pyrite.set_tile((4, 1), "pyrite", (255, 255, 255), (False, False))
+            mouse_left = pyrite.button_down("M1")
+            mouse_right = pyrite.button_down("M3")
+            pyrite.set_tile((4, 1), "pyrite", (255, 255, 255), (mouse_left, mouse_right))
             pyrite.set_tile((5, 1), "read_the_docs", (255, 255, 255), (False, False))
-
-        # create a second loop for other behaviour that runs once per second
-        while pyrite.timestep("other", 1):
-            print("1 second passed")
 
 def pick_plant_color():
     return random.choice([(1,145,135), (146,196,86), (199,228,128), (221,193,85)])

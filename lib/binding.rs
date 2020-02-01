@@ -101,8 +101,8 @@ fn mouse_position() -> (i32, i32) {
 /// --
 /// Set the viewport in tiles
 #[pyfunction]
-fn set_viewport(viewport_width: i32, viewport_height: i32) {
-    engine!().set_viewport(viewport_width, viewport_height)
+fn set_viewport(viewport_width: i32, viewport_height: i32, viewport_scale: i32) {
+    engine!().set_viewport(viewport_width, viewport_height, viewport_scale)
 }
 
 /// set_tile(name, x, y)
@@ -242,9 +242,7 @@ fn pyobject_into_configuration(config: PyObject) -> Config {
         "0.0.0".to_string()
     );
 
-    let window_width = extract_or!(py, config, "window_width", u32, 800);
-    let window_height = extract_or!(py, config, "window_height", u32, 600);
-    let window_resizable = extract_or!(py, config, "window_resizable", bool, false);
+    let viewport_scale = extract_or!(py, config, "viewport_scale", i32, 2);
     let viewport_width = extract_or!(py, config, "viewport_width", i32, 10);
     let viewport_height = extract_or!(py, config, "viewport_height", i32, 10);
 
@@ -256,9 +254,7 @@ fn pyobject_into_configuration(config: PyObject) -> Config {
     Config {
         application_name,
         application_version,
-        window_width,
-        window_height,
-        window_resizable,
+        viewport_scale,
         viewport_width,
         viewport_height,
         tileset_width,

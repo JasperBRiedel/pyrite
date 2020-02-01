@@ -5,8 +5,8 @@ use crate::resources;
 use gl;
 use gl::types::*;
 use glutin::{
-    dpi::LogicalSize, window::WindowBuilder, Api, ContextBuilder, GlProfile, GlRequest,
-    PossiblyCurrent, WindowedContext,
+    dpi::LogicalSize, dpi::PhysicalSize, window::WindowBuilder, Api, ContextBuilder, GlProfile,
+    GlRequest, PossiblyCurrent, WindowedContext,
 };
 use image::GenericImageView;
 use image::Pixel;
@@ -18,8 +18,8 @@ use std::str;
 
 pub struct Context {
     pub windowed_context: WindowedContext<PossiblyCurrent>,
-    framebuffer_size: (u32, u32),
-    tileset: Option<Tileset>,
+    framebuffer_size: PhysicalSize<u32>,
+    tileset: Tileset,
     viewport: Viewport,
     scene: Scene,
     quad: Quad,
@@ -28,15 +28,14 @@ pub struct Context {
 }
 
 impl Context {
-    pub fn new(config: &engine::Config, platform: &platform::Platform) -> Self {
+    pub fn new(
+        config: &engine::Config,
+        platform: &platform::Platform,
+        resources: &Box<dyn resources::Provider>,
+    ) -> Self {
+        let window_builder = WindowBuilder::new().with_title(&config.application_name);
+
         pyrite_log!("Loading graphics context");
-        let window_size = LogicalSize::new(config.window_width as f64, config.window_height as f64);
-
-        let window_builder = WindowBuilder::new()
-            .with_title(&config.application_name)
-            .with_resizable(config.window_resizable)
-            .with_inner_size(window_size);
-
         let windowed_context = unsafe {
             ContextBuilder::new()
                 .with_gl(GlRequest::Specific(Api::OpenGl, (3, 3)))
@@ -58,11 +57,17 @@ impl Context {
 
         gl_log_info();
 
-        let framebuffer_size = (window_size.width as u32, window_size.height as u32);
+        pyrite_log!("Loading tileset...");
+        let tileset = Tileset::from_config(config, resources);
 
-        let tileset = None;
-
-        let viewport = Viewport::new(config.viewport_width, config.viewport_height);
+        pyrite_log!("Building viewport...");
+        let viewport = Viewport::new(
+            config.viewport_width,
+            config.viewport_height,
+            config.viewport_scale,
+        );
+        let framebuffer_size = viewport.get_framebuffer_size(tileset.get_tile_dimensions_i32());
+        windowed_context.window().set_inner_size(framebuffer_size);
 
         pyrite_log!("Loading scene...");
         let scene = Scene::new();
@@ -91,32 +96,6 @@ impl Context {
         }
     }
 
-    pub fn load_tileset(
-        &mut self,
-        config: &engine::Config,
-        resources: &Box<dyn resources::Provider>,
-    ) {
-        let image_bytes = resources
-            .read_to_bytes(&config.tileset_path)
-            .expect("failed to load tileset image");
-        let tileset_image = image::load_from_memory(&image_bytes).expect("failed to load tileset");
-
-        self.tileset = Some(Tileset::new(
-            &tileset_image,
-            (config.tileset_width, config.tileset_height),
-            config.tile_names.clone(),
-        ));
-
-        pyrite_log!(
-            "Loaded tileset {} (tiles: {}x{}) (pixels: {}x{})",
-            config.tileset_path,
-            config.tileset_width,
-            config.tileset_height,
-            tileset_image.width(),
-            tileset_image.height(),
-        );
-    }
-
     pub fn set_tile(
         &mut self,
         position: (i32, i32),
@@ -127,46 +106,41 @@ impl Context {
         back_color: (u8, u8, u8),
         back_flip: (bool, bool),
     ) {
-        if let Some(tileset) = &self.tileset {
-            // only allow tiles within the viewport to be changed
-            if self.viewport.contains(position.0, position.1) {
-                let scene_changed = self.scene.set_tile(
-                    tileset,
-                    position,
-                    front_tile,
-                    front_color,
-                    front_flip,
-                    back_tile,
-                    back_color,
-                    back_flip,
-                );
+        // only allow tiles within the viewport to be changed
+        if self.viewport.contains(position.0, position.1) {
+            let scene_changed = self.scene.set_tile(
+                &self.tileset,
+                position,
+                front_tile,
+                front_color,
+                front_flip,
+                back_tile,
+                back_color,
+                back_flip,
+            );
 
-                // Flag that the scene was changed. Because we only render and swap buffers when
-                // there's something new to show.
-                self.pending_render = self.pending_render || scene_changed;
-            }
+            // Flag that the scene was changed. Because we only render and swap buffers when
+            // there's something new to show.
+            self.pending_render = self.pending_render || scene_changed;
         }
     }
 
-    pub fn set_viewport(&mut self, width: i32, height: i32) {
-        // we proxy the call to set the viewport so we can also flag that a new frame needs to be
-        // rendered.
-        self.viewport.set(width, height);
+    pub fn set_viewport(&mut self, width: i32, height: i32, scale: i32) {
+        self.viewport.set(width, height, scale);
+
+        self.framebuffer_size = self
+            .viewport
+            .get_framebuffer_size(self.tileset.get_tile_dimensions_i32());
+
+        self.windowed_context
+            .window()
+            .set_inner_size(self.framebuffer_size);
+
         self.pending_render = true;
     }
 
     pub fn get_viewport(&self) -> &Viewport {
         &self.viewport
-    }
-
-    pub fn resize_framebuffer(&mut self, width: i32, height: i32) {
-        unsafe {
-            self.framebuffer_size = (width as u32, height as u32);
-            gl::Viewport(0, 0, width, height);
-
-            // Render the scene at the new resolution
-            self.pending_render = true;
-        }
     }
 
     /// Render the scene and present that frame to the screen.
@@ -181,44 +155,48 @@ impl Context {
         }
         self.pending_render = false;
 
-        if let Some(tileset) = &self.tileset {
-            self.clear_frame();
+        self.clear_frame();
 
-            self.scene.upload();
+        self.scene.upload();
 
-            unsafe { gl::ActiveTexture(gl::TEXTURE0) };
-            tileset.texture.bind();
-            unsafe { gl::ActiveTexture(gl::TEXTURE1) };
-            self.scene.tiles_texture.bind();
-            unsafe { gl::ActiveTexture(gl::TEXTURE2) };
-            self.scene.front_tiles_modifiers_texture.bind();
-            unsafe { gl::ActiveTexture(gl::TEXTURE3) };
-            self.scene.back_tiles_modifiers_texture.bind();
+        unsafe { gl::ActiveTexture(gl::TEXTURE0) };
+        self.tileset.texture.bind();
+        unsafe { gl::ActiveTexture(gl::TEXTURE1) };
+        self.scene.tiles_texture.bind();
+        unsafe { gl::ActiveTexture(gl::TEXTURE2) };
+        self.scene.front_tiles_modifiers_texture.bind();
+        unsafe { gl::ActiveTexture(gl::TEXTURE3) };
+        self.scene.back_tiles_modifiers_texture.bind();
 
-            self.shader.bind();
+        self.shader.bind();
 
-            self.shader
-                .set_uniform_2u("viewport_size", self.viewport.get_u32());
+        self.shader
+            .set_uniform_2u("viewport_size", self.viewport.get_dimensions_u32());
 
-            self.shader
-                .set_uniform_2u("tileset_size", tileset.get_dimensions_u32());
+        self.shader
+            .set_uniform_2u("tileset_size", self.tileset.get_dimensions_u32());
 
-            self.shader
-                .set_uniform_2u("framebuffer_size", self.framebuffer_size);
+        self.shader.set_uniform_2u(
+            "framebuffer_size",
+            (
+                self.framebuffer_size.width as u32,
+                self.framebuffer_size.height as u32,
+            ),
+        );
 
-            self.shader
-                .set_uniform_2i("tile_size", tileset.get_tile_dimensions_i32());
+        self.shader
+            .set_uniform_2i("tile_size", self.tileset.get_tile_dimensions_i32());
 
-            self.shader.set_uniform_1u("scale", 3);
+        self.shader
+            .set_uniform_1u("scale", self.viewport.get_scale() as u32);
 
-            // set tileset texture to texture unit 0
-            self.shader.set_uniform_1i("tileset", 0);
-            self.shader.set_uniform_1i("scene_tiles", 1);
-            self.shader.set_uniform_1i("front_scene_tiles_modifiers", 2);
-            self.shader.set_uniform_1i("back_scene_tiles_modifiers", 3);
+        // set tileset texture to texture unit 0
+        self.shader.set_uniform_1i("tileset", 0);
+        self.shader.set_uniform_1i("scene_tiles", 1);
+        self.shader.set_uniform_1i("front_scene_tiles_modifiers", 2);
+        self.shader.set_uniform_1i("back_scene_tiles_modifiers", 3);
 
-            self.quad.draw();
-        }
+        self.quad.draw();
 
         self.windowed_context.swap_buffers().unwrap();
 
@@ -238,14 +216,16 @@ impl Context {
 pub struct Viewport {
     width: i32,
     height: i32,
+    scale: i32,
 }
 
 #[allow(dead_code)]
 impl Viewport {
-    pub fn new(width: i32, height: i32) -> Self {
+    pub fn new(width: i32, height: i32, scale: i32) -> Self {
         Self {
             width: width.min(1024),
             height: height.min(1024),
+            scale: scale.max(1),
         }
     }
 
@@ -253,20 +233,32 @@ impl Viewport {
         x >= 0 && x <= self.width && y >= 0 && y <= self.height
     }
 
-    pub fn set(&mut self, width: i32, height: i32) {
+    pub fn set(&mut self, width: i32, height: i32, scale: i32) {
         self.width = width.min(1024);
         self.height = height.min(1024);
+        self.scale = scale.max(1);
     }
 
-    pub fn get(&self) -> (i32, i32) {
+    pub fn get_dimensions(&self) -> (i32, i32) {
         (self.width, self.height)
     }
 
-    pub fn get_u32(&self) -> (u32, u32) {
+    pub fn get_scale(&self) -> i32 {
+        self.scale
+    }
+
+    pub fn get_framebuffer_size(&self, tile_size: (i32, i32)) -> PhysicalSize<u32> {
+        PhysicalSize::new(
+            (self.width * (tile_size.0 * self.scale)) as u32,
+            (self.height * (tile_size.1 * self.scale)) as u32,
+        )
+    }
+
+    pub fn get_dimensions_u32(&self) -> (u32, u32) {
         (self.width as u32, self.height as u32)
     }
 
-    pub fn get_f32(&self) -> (f32, f32) {
+    pub fn get_dimensions_f32(&self) -> (f32, f32) {
         (self.width as f32, self.height as f32)
     }
 }
@@ -510,6 +502,30 @@ struct Tileset {
 }
 
 impl Tileset {
+    fn from_config(config: &engine::Config, resources: &Box<dyn resources::Provider>) -> Self {
+        let image_bytes = resources
+            .read_to_bytes(&config.tileset_path)
+            .expect("failed to load tileset image");
+        let tileset_image = image::load_from_memory(&image_bytes).expect("failed to load tileset");
+
+        let tileset = Tileset::new(
+            &tileset_image,
+            (config.tileset_width, config.tileset_height),
+            config.tile_names.clone(),
+        );
+
+        pyrite_log!(
+            "Loaded tileset {} (tiles: {}x{}) (pixels: {}x{})",
+            config.tileset_path,
+            config.tileset_width,
+            config.tileset_height,
+            tileset_image.width(),
+            tileset_image.height(),
+        );
+
+        return tileset;
+    }
+
     fn new(
         image: &image::DynamicImage,
         set_dimensions: (u32, u32),
