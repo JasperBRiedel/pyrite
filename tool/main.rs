@@ -76,7 +76,7 @@ fn interactive_mode() -> bool {
 
 fn display_help() {
     println!(
-        r#"Pyrite engine CLI tool v0.2.0
+        r#"Pyrite engine CLI tool {}
 
 Commands:
     Create new project
@@ -90,7 +90,8 @@ Commands:
     
     Exit the interactive tool mode.
     exit
-        "#
+        "#,
+        env!("CARGO_PKG_VERSION"),
     )
 }
 

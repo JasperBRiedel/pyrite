@@ -14,7 +14,8 @@ macro_rules! pyrite_log {
 }
 
 pub fn start<R: resources::Provider + 'static>(resource_provider: R) {
-    pyrite_log!("Starting.... Obtaining python environment lock");
+    pyrite_log!("Pyrite {}", env!("CARGO_PKG_VERSION"));
+    pyrite_log!("Acquiring python environment lock");
     let py_lock = Python::acquire_gil();
     let py = py_lock.python();
 
