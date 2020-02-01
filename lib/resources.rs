@@ -67,7 +67,7 @@ impl Provider for PackagedProvider {
 
 impl PackagedProvider {
     pub fn new() -> Self {
-        let package_path = dbg!(env::current_exe().expect("failed to locate pyrite executable"));
+        let package_path = env::current_exe().expect("failed to locate pyrite executable");
         // useful for testing. Loads the resource package of another project.
         // use std::str::FromStr;
         // let package_path =
@@ -105,6 +105,7 @@ impl PackagedProvider {
             .expect("failed to seek to resources start offset");
 
         // walk resources and set-up index table
+        pyrite_log!("Indexing packaged resources");
         for _ in 0..resource_count {
             // read name length
             let mut name_length_bytes = [0u8; 4];
@@ -112,8 +113,6 @@ impl PackagedProvider {
                 .read_exact(&mut name_length_bytes)
                 .expect("failed to read name length");
             let name_length = u32::from_be_bytes(name_length_bytes);
-
-            dbg!(name_length);
 
             // read resource name
             let mut name_bytes = Vec::new();
@@ -125,16 +124,12 @@ impl PackagedProvider {
             let resource_name =
                 String::from_utf8(name_bytes).expect("failed to decode resource name");
 
-            dbg!(&resource_name);
-
             // read resource length
             let mut resource_length_bytes = [0u8; 8];
             shared_binary
                 .read_exact(&mut resource_length_bytes)
                 .expect("failed to read name length");
             let resource_length = u64::from_be_bytes(resource_length_bytes);
-
-            dbg!(resource_length);
 
             // read resource
             let mut resource_bytes = Vec::new();
@@ -144,8 +139,7 @@ impl PackagedProvider {
                 .read_to_end(&mut resource_bytes)
                 .expect("failed to read resource name");
 
-            dbg!(resource_bytes.len());
-
+            pyrite_log!("Indexed {} {}b", resource_name, resource_bytes.len());
             resource_index.insert(resource_name, resource_bytes);
         }
 
