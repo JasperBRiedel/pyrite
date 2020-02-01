@@ -158,7 +158,6 @@ impl Engine {
     // API Function
     pub fn set_viewport(&mut self, width: i32, height: i32, scale: i32) {
         if let Some(context) = &mut self.graphics_context {
-            pyrite_log!("Viewport dimensions updated: ({}, {})", width, height);
             context.set_viewport(width, height, scale);
         }
     }
