@@ -1,5 +1,6 @@
 use std::env;
 use std::fs;
+use std::fs::OpenOptions;
 use std::io;
 use std::io::Write;
 use std::path::PathBuf;
@@ -31,13 +32,13 @@ fn evaluate_command(mut command_with_args: Vec<String>) {
             let tool_dir = tool_exe
                 .parent()
                 .expect("failed to extract pyrite directory");
-            let project_dir = tool_dir.join("projects").join(project_path);
+            let project_dir = tool_dir.join("projects").join(&project_path);
             let project_name = join_strings(&args, " ");
 
             match command.as_str() {
                 "new" => new_command(project_name, project_dir),
                 "run" => run_command(project_name, project_dir),
-                "build" => build_command(project_name, project_dir),
+                "build" => build_command(project_name, project_path, project_dir),
                 _ => unreachable!(),
             }
         }
@@ -161,7 +162,7 @@ fn run_command(project_name: String, project_dir: PathBuf) {
     pyrite::start(resources);
 }
 
-fn build_command(project_name: String, project_dir: PathBuf) {
+fn build_command(project_name: String, project_path: String, project_dir: PathBuf) {
     println!(
         "building project {} - {}",
         project_name,
@@ -178,5 +179,57 @@ fn build_command(project_name: String, project_dir: PathBuf) {
         return;
     };
 
-    dbg!(packaged_bytes);
+    write_player_binary(
+        format!("{}-win.exe", project_path),
+        include_bytes!("../template/player-windows.exe"),
+        &packaged_bytes,
+    );
+
+    write_player_binary(
+        format!("{}-linux", project_path),
+        include_bytes!("../template/player-linux"),
+        &packaged_bytes,
+    );
+}
+
+fn write_player_binary(binary_name: String, binary_bytes: &[u8], resources_bytes: &[u8]) {
+    let tool_exe = env::current_exe().expect("failed to locate pyrite executable");
+    let tool_dir = tool_exe
+        .parent()
+        .expect("failed to extract pyrite directory");
+    let builds_path = tool_dir.join("builds");
+    fs::create_dir_all(&builds_path).expect("failed to create build directory");
+    let player_binary_path = builds_path.join(&binary_name);
+
+    let player_binary_file = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open(&player_binary_path);
+
+    match player_binary_file {
+        Ok(mut file) => {
+            if let Err(e) = file.write_all(binary_bytes) {
+                println!(
+                    "Failed to write to binary {} {}",
+                    player_binary_path.display(),
+                    e
+                );
+            }
+            if let Err(e) = file.write_all(resources_bytes) {
+                println!(
+                    "Failed to write resources {} {}",
+                    player_binary_path.display(),
+                    e
+                );
+            }
+        }
+        Err(e) => println!(
+            "Failed to open binary for writing {} {}",
+            player_binary_path.display(),
+            e
+        ),
+    }
+
+    println!("Created binary \"{}\"", player_binary_path.display());
 }
