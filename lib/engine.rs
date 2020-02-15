@@ -32,6 +32,14 @@ impl Timestep {
         }
     }
 
+    fn should_consume_fixed_time(&self) -> bool {
+        todo!()
+    }
+
+    fn consume_fixed_time(&mut self) -> Duration {
+        todo!()
+    }
+
     fn step(&mut self, interval: f64) -> bool {
         let delta_time = 1. / interval;
         self.accumulator += self.last_step.elapsed();
@@ -51,6 +59,7 @@ pub enum Event {
     Button { button: String, transition: String },
     Scroll { x: i32, y: i32 },
     Text { text: String },
+    Step { delta_time: f64 },
 }
 
 pub struct Engine {
@@ -76,10 +85,11 @@ impl Engine {
         }
     }
 
-    // API Function
-    pub fn run(&mut self, config: Config) -> bool {
-        // if config is none then this is the first call to run.
-        // on the first call we load the configuration and initialise the graphics context.
+    pub fn get_running(&self) -> bool {
+        self.running
+    }
+
+    pub fn load_configuration(&mut self, config: Config) {
         if self.config.is_none() {
             pyrite_log!("Loading configuration");
             log_config(&config);
@@ -93,8 +103,46 @@ impl Engine {
 
             self.graphics_context = Some(graphics_context);
         }
+    }
 
-        // Render a frame to the screen
+    // API Function
+    pub fn run(&mut self, config: Config) -> bool {
+        // // if config is none then this is the first call to run.
+        // // on the first call we load the configuration and initialise the graphics context.
+        // if self.config.is_none() {
+        //     pyrite_log!("Loading configuration");
+        //     log_config(&config);
+        //     self.config = Some(config);
+
+        //     let graphics_context = graphics::Context::new(
+        //         self.config.as_ref().unwrap(),
+        //         &self.platform,
+        //         &self.resources,
+        //     );
+
+        //     self.graphics_context = Some(graphics_context);
+        // }
+
+        // // Render a frame to the screen
+        // let frame_presented = self.graphics_context.as_mut().unwrap().present_frame();
+
+        // // The renderer optimises and will sometimes choose not to render or swap buffers, in this
+        // // case we will sleep the program for a moment when v-sync is enabled to give the cpu a
+        // // break.
+        // if !frame_presented {
+        //     thread::sleep(Duration::from_millis(8));
+        // }
+
+        // if !self.running || self.platform.close_requested {
+        //     self.clean();
+        //     return false;
+        // }
+
+        // return true;
+        unimplemented!()
+    }
+
+    pub fn render(&mut self) {
         let frame_presented = self.graphics_context.as_mut().unwrap().present_frame();
 
         // The renderer optimises and will sometimes choose not to render or swap buffers, in this
@@ -103,38 +151,32 @@ impl Engine {
         if !frame_presented {
             thread::sleep(Duration::from_millis(8));
         }
-
-        if !self.running || self.platform.close_requested {
-            self.clean();
-            return false;
-        }
-
-        return true;
     }
 
     // API Function
     pub fn timestep(&mut self, timestep_identifier: String, interval: f64) -> bool {
-        let timestep = self
-            .timesteps
-            .entry(timestep_identifier.clone())
-            .or_insert_with(|| {
-                pyrite_log!("Registered new timestep \"{}\"", timestep_identifier);
-                Timestep::new()
-            });
+        // let timestep = self
+        //     .timesteps
+        //     .entry(timestep_identifier.clone())
+        //     .or_insert_with(|| {
+        //         pyrite_log!("Registered new timestep \"{}\"", timestep_identifier);
+        //         Timestep::new()
+        //     });
 
-        self.platform.service();
+        // self.platform.service();
 
-        let should_step = timestep.step(interval);
+        // let should_step = timestep.step(interval);
 
-        if should_step {
-            self.current_timestep_identifier = timestep_identifier;
-        } else {
-            if self.current_timestep_identifier != "outer" {
-                self.current_timestep_identifier = String::from("outer");
-            }
-        }
+        // if should_step {
+        //     self.current_timestep_identifier = timestep_identifier;
+        // } else {
+        //     if self.current_timestep_identifier != "outer" {
+        //         self.current_timestep_identifier = String::from("outer");
+        //     }
+        // }
 
-        return should_step;
+        // return should_step;
+        unimplemented!()
     }
 
     // API Function
@@ -193,6 +235,7 @@ impl Engine {
 
     // API Function
     pub fn poll_events(&mut self) -> Vec<Event> {
+        self.platform.service();
         // eventually will inject other events here such as network api stuff
         self.platform.poll_events()
     }

@@ -5,6 +5,7 @@ mod platform;
 pub mod resources;
 
 use pyo3::{prelude::*, types::PyDict};
+use std::time::{Duration, Instant};
 
 #[macro_export]
 macro_rules! pyrite_log {
@@ -40,21 +41,54 @@ pub fn start<R: resources::Provider + 'static>(resource_provider: R) {
         .expect("failed to create python resource importer hook");
 
     pyrite_log!("Loading entry module");
-    match PyModule::from_code(py, &entry_source, entry_path, "entry") {
-        Ok(entry) => {
-            pyrite_log!("Invoking entry module __entry__() function");
-            match entry.call0("__entry__") {
-                Err(e) => {
-                    pyrite_log!("An error occurred during runtime of the entry module");
-                    e.print(py);
-                }
-                _ => pyrite_log!("Entry module exited gracefully"),
-            }
+    let entry_module = match PyModule::from_code(py, &entry_source, entry_path, "entry") {
+        Ok(module) => {
+            module
+            // pyrite_log!("Invoking entry module __entry__() function");
+            // match entry.call0("__entry__") {
+            //     Err(e) => {
+            //         pyrite_log!("An error occurred during runtime of the entry module");
+            //         e.print(py);
+            //     }
+            //     _ => pyrite_log!("Entry module exited gracefully"),
+            // }
         }
         Err(e) => {
             pyrite_log!("An error occurred while importing the entry module");
             e.print(py);
+            return;
         }
+    };
+
+    // load configuration via callback.
+    // let config = binding::get_configuration();
+    // engine!().load_configuration(config);
+
+    let delta_time = Duration::from_secs_f64(1. / 60.);
+    let mut current_time = Instant::now();
+    let mut accumulated_time = Duration::from_secs(0);
+
+    // while running
+    while engine!().get_running() {
+        // calculate time since last frame, add it to the accumulator.
+        accumulated_time += current_time.elapsed();
+        current_time = Instant::now();
+
+        for event in engine!().poll_events() {
+            binding::raise_event(entry_module, event);
+        }
+
+        while accumulated_time >= delta_time {
+            accumulated_time -= delta_time;
+            binding::raise_event(
+                entry_module,
+                engine::Event::Step {
+                    delta_time: delta_time.as_secs_f64(),
+                },
+            );
+        }
+
+        engine!().render();
     }
 
     pyrite_log!("Cleaning up pyrite engine resources");

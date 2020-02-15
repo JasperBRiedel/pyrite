@@ -4,7 +4,7 @@ use pyo3::types::PyDict;
 use pyo3::wrap_pyfunction;
 use std::collections::HashMap;
 
-static mut ENGINE_INSTANCE: Option<Engine> = None;
+pub static mut ENGINE_INSTANCE: Option<Engine> = None;
 
 pub fn load_engine(e: Engine) {
     unsafe {
@@ -20,10 +20,11 @@ macro_rules! bind {
     };
 }
 
+#[macro_export]
 macro_rules! engine {
     () => {
         unsafe {
-            match &mut ENGINE_INSTANCE {
+            match &mut $crate::binding::ENGINE_INSTANCE {
                 Some(e) => e,
                 None => {
                     panic!("An engine function was invoked without an available engine instance")
@@ -60,6 +61,10 @@ macro_rules! extract_or {
             .and_then(|py_object| py_object.extract::<$type>($py).ok())
             .unwrap_or($default)
     };
+}
+
+pub fn raise_event(entry_module: &PyModule, event: Event) {
+    todo!("Call __event__(type, data) callback in the entry module with the event")
 }
 
 /// run(configuration)
@@ -201,6 +206,14 @@ fn event_into_pyobject(event: Event) -> PyObject {
                 .expect("failed to set event item");
             py_event
                 .set_item("text", text)
+                .expect("failed to set event item");
+        }
+        Event::Step { delta_time } => {
+            py_event
+                .set_item("type", "step")
+                .expect("failed to set event item");
+            py_event
+                .set_item("delta_time", delta_time)
                 .expect("failed to set event item");
         }
     };
