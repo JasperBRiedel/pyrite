@@ -161,6 +161,10 @@ impl Context {
         }
         self.pending_render = false;
 
+        // ensure frame buffer is the correct size before rendering.
+        // Sometimes the platform doesn't keep up and might not have resized the buffer yet.
+        self.apply_viewport_framebuffer();
+
         self.clear_frame();
 
         self.scene.upload();
@@ -210,6 +214,17 @@ impl Context {
         return true;
     }
 
+    fn apply_viewport_framebuffer(&self) {
+        unsafe {
+            gl::Viewport(
+                0,
+                0,
+                self.framebuffer_size.width as i32,
+                self.framebuffer_size.height as i32,
+            );
+        }
+    }
+
     fn clear_frame(&self) {
         unsafe {
             gl::ClearColor(1., 1., 1., 1.);
@@ -229,8 +244,8 @@ pub struct Viewport {
 impl Viewport {
     pub fn new(width: i32, height: i32, scale: i32) -> Self {
         Self {
-            width: width.min(1024),
-            height: height.min(1024),
+            width: width.min(1024).max(3),
+            height: height.min(1024).max(3),
             scale: scale.max(1),
         }
     }
@@ -240,8 +255,8 @@ impl Viewport {
     }
 
     pub fn set(&mut self, width: i32, height: i32, scale: i32) {
-        self.width = width.min(1024);
-        self.height = height.min(1024);
+        self.width = width.min(1024).max(3);
+        self.height = height.min(1024).max(3);
         self.scale = scale.max(1);
     }
 
