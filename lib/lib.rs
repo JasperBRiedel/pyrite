@@ -62,11 +62,21 @@ pub fn start<R: resources::Provider + 'static>(resource_provider: R) {
     let delta_time = Duration::from_secs_f64(1. / 60.);
     let mut current_time = Instant::now();
     let mut accumulated_time = Duration::from_secs(0);
+    let max_frame_time = Duration::from_secs_f64(0.25);
 
     // while running
     while engine!().get_running() {
         // calculate time since last frame, add it to the accumulator.
-        accumulated_time += current_time.elapsed();
+        let frame_time = current_time.elapsed();
+
+        // cap frame time to a maximum value to prevent spiral of death.
+        if frame_time > max_frame_time {
+            accumulated_time += max_frame_time;
+            pyrite_log!("Timestep exceeded maximum safe value, slowing down time to compensate");
+        } else {
+            accumulated_time += frame_time;
+        }
+
         current_time = Instant::now();
 
         for event in engine!().poll_events() {
