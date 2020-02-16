@@ -5,12 +5,7 @@ use pyo3::wrap_pyfunction;
 use std::collections::HashMap;
 
 pub static mut ENGINE_INSTANCE: Option<Engine> = None;
-
-pub fn load_engine(e: Engine) {
-    unsafe {
-        ENGINE_INSTANCE = Some(e);
-    }
-}
+static mut GAME_DATA: Option<&PyDict> = None;
 
 macro_rules! bind {
     ($module:ident, $func:ident) => {
@@ -34,27 +29,6 @@ macro_rules! engine {
     };
 }
 
-pub fn load_bindings(m: &PyModule) {
-    bind!(m, run);
-    bind!(m, timestep);
-    bind!(m, exit);
-    bind!(m, mouse_position);
-    bind!(m, button_down);
-    bind!(m, poll_events);
-    bind!(m, set_viewport);
-    bind!(m, set_tile);
-    bind!(m, resource_read);
-    bind!(m, resource_exists);
-}
-
-pub fn destroy_engine() {
-    engine!().clean();
-
-    unsafe {
-        ENGINE_INSTANCE = None;
-    }
-}
-
 macro_rules! extract_or {
     ($py:ident, $map:ident, $key:literal, $type:ty, $default:expr) => {
         $map.get($key)
@@ -63,8 +37,117 @@ macro_rules! extract_or {
     };
 }
 
-pub fn raise_event(entry_module: &PyModule, event: Event) {
-    todo!("Call __event__(type, data) callback in the entry module with the event")
+pub fn inject_engine(py: Python, engine: Engine) {
+    // set engine instance to be called by python module functions.
+    unsafe {
+        ENGINE_INSTANCE = Some(engine);
+    }
+
+    // create python engine module and bind functions
+    let engine_module = PyModule::new(py, "pyrite").expect("failed to initialise engine module");
+    bind!(engine_module, run);
+    bind!(engine_module, game_data);
+    bind!(engine_module, exit);
+    bind!(engine_module, mouse_position);
+    bind!(engine_module, button_down);
+    bind!(engine_module, set_viewport);
+    bind!(engine_module, set_tile);
+    bind!(engine_module, resource_read);
+    bind!(engine_module, resource_exists);
+
+    // Inject the engine module into the python importer
+    py.import("sys")
+        .expect("failed to import python sys module")
+        .dict()
+        .get_item("modules")
+        .expect("failed to get python modules dictionary")
+        .downcast_mut::<PyDict>()
+        .expect("failed to turn sys.modules into a PyDict")
+        .set_item(
+            engine_module.name().expect("module missing name"),
+            engine_module,
+        )
+        .expect("failed to inject module");
+}
+
+pub fn destroy_engine() {
+    engine!().clean();
+
+    unsafe {
+        ENGINE_INSTANCE = None;
+        GAME_DATA = None;
+    }
+}
+
+pub fn raise_event(py: Python, entry_module: &PyModule, event: &Event) {
+    let event_type = event.type_str();
+    let event_data = event_data_into_pyobject(&event);
+    let game_data = get_game_data();
+
+    let event_result = entry_module.call1("__event__", (event_type, event_data, game_data));
+
+    match event_result {
+        Ok(_) => (),
+        Err(e) => {
+            // can probably capture game errors here
+            pyrite_log!("Failed to invoke __event__ with event {}", event_type);
+            e.print(py);
+        }
+    }
+}
+
+pub fn get_configuration(entry_module: &PyModule) -> Option<Config> {
+    let py_config = entry_module.call0("__config__").ok()?;
+
+    let config: HashMap<String, PyObject> = py_config
+        .extract()
+        .expect("Type error when reading the configuration structure");
+
+    let py = unsafe { Python::assume_gil_acquired() };
+
+    let application_name = extract_or!(
+        py,
+        config,
+        "application_name",
+        String,
+        "default".to_string()
+    );
+
+    let application_version = extract_or!(
+        py,
+        config,
+        "application_version",
+        String,
+        "0.0.0".to_string()
+    );
+
+    let viewport_scale = extract_or!(py, config, "viewport_scale", i32, 2);
+    let viewport_width = extract_or!(py, config, "viewport_width", i32, 10);
+    let viewport_height = extract_or!(py, config, "viewport_height", i32, 10);
+
+    let tileset_width = extract_or!(py, config, "tileset_width", u32, 3);
+    let tileset_height = extract_or!(py, config, "tileset_height", u32, 3);
+    let tileset_path = extract_or!(py, config, "tileset_path", String, "default.png".to_owned());
+    let tile_names = extract_or!(py, config, "tile_names", Vec<String>, Vec::new());
+
+    Some(Config {
+        application_name,
+        application_version,
+        viewport_scale,
+        viewport_width,
+        viewport_height,
+        tileset_width,
+        tileset_height,
+        tileset_path,
+        tile_names,
+    })
+}
+
+fn get_game_data() -> &'static PyDict {
+    unsafe {
+        let py = Python::assume_gil_acquired();
+        GAME_DATA.get_or_insert_with(|| PyDict::new(py))
+    }
 }
 
 /// run(configuration)
@@ -76,12 +159,12 @@ fn run(config: PyObject) -> bool {
     engine!().run(config)
 }
 
-/// timestep(interval)
+/// game_data()
 /// --
-/// Return true interval amount of seconds
+/// Return a reference to the global game data dictionary
 #[pyfunction]
-fn timestep(label: String, interval: f64) -> bool {
-    engine!().timestep(label, interval)
+fn game_data() -> &'static PyDict {
+    get_game_data()
 }
 
 /// exit()
@@ -148,18 +231,6 @@ fn button_down(button: String) -> bool {
     engine!().button_down(button)
 }
 
-/// poll_events() -> [event]
-/// --
-/// returns an array of events
-#[pyfunction]
-fn poll_events() -> Vec<PyObject> {
-    engine!()
-        .poll_events()
-        .into_iter()
-        .map(|e| event_into_pyobject(e))
-        .collect()
-}
-
 /// resource_read(path)
 /// --
 /// Read in the contents of a resource file
@@ -176,16 +247,14 @@ fn resource_exists(path: String) -> bool {
     engine!().resource_exists(path)
 }
 
-fn event_into_pyobject(event: Event) -> PyObject {
+fn event_data_into_pyobject(event: &Event) -> PyObject {
     let py = unsafe { Python::assume_gil_acquired() };
 
     let py_event = PyDict::new(py);
 
     match event {
+        Event::Load => (),
         Event::Button { button, transition } => {
-            py_event
-                .set_item("type", "button")
-                .expect("failed to set event item");
             py_event
                 .set_item("button", button)
                 .expect("failed to set event item");
@@ -194,24 +263,15 @@ fn event_into_pyobject(event: Event) -> PyObject {
                 .expect("failed to set event item");
         }
         Event::Scroll { x, y } => {
-            py_event
-                .set_item("type", "scroll")
-                .expect("failed to set event item");
             py_event.set_item("x", x).expect("failed to set event item");
             py_event.set_item("y", y).expect("failed to set event item");
         }
         Event::Text { text } => {
             py_event
-                .set_item("type", "text")
-                .expect("failed to set event item");
-            py_event
                 .set_item("text", text)
                 .expect("failed to set event item");
         }
         Event::Step { delta_time } => {
-            py_event
-                .set_item("type", "step")
-                .expect("failed to set event item");
             py_event
                 .set_item("delta_time", delta_time)
                 .expect("failed to set event item");

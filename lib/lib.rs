@@ -26,15 +26,11 @@ pub fn start<R: resources::Provider + 'static>(resource_provider: R) {
         .read_to_string(entry_path)
         .expect("failed to load entry.py");
 
-    pyrite_log!("Preparing pyrite engine instance");
+    pyrite_log!("Building pyrite engine instance");
     let resources = Box::new(resource_provider);
     let engine = engine::Engine::new(resources);
-    binding::load_engine(engine);
-
-    pyrite_log!("Injecting pyrite engine module");
-    let engine_module = PyModule::new(py, "pyrite").expect("failed to initialise engine module");
-    binding::load_bindings(engine_module);
-    inject_python_module(py, engine_module);
+    pyrite_log!("Building python bindings");
+    binding::inject_engine(py, engine);
 
     pyrite_log!("Injecting pyrite imports module");
     PyModule::from_code(py, include_str!("importer.py"), "importer.py", "importer")
@@ -42,17 +38,7 @@ pub fn start<R: resources::Provider + 'static>(resource_provider: R) {
 
     pyrite_log!("Loading entry module");
     let entry_module = match PyModule::from_code(py, &entry_source, entry_path, "entry") {
-        Ok(module) => {
-            module
-            // pyrite_log!("Invoking entry module __entry__() function");
-            // match entry.call0("__entry__") {
-            //     Err(e) => {
-            //         pyrite_log!("An error occurred during runtime of the entry module");
-            //         e.print(py);
-            //     }
-            //     _ => pyrite_log!("Entry module exited gracefully"),
-            // }
-        }
+        Ok(module) => module,
         Err(e) => {
             pyrite_log!("An error occurred while importing the entry module");
             e.print(py);
@@ -61,9 +47,18 @@ pub fn start<R: resources::Provider + 'static>(resource_provider: R) {
     };
 
     // load configuration via callback.
-    // let config = binding::get_configuration();
-    // engine!().load_configuration(config);
+    match binding::get_configuration(&entry_module) {
+        Some(config) => engine!().load_configuration(config),
+        None => {
+            pyrite_log!("Failed to get configuration from __config__ in entry module");
+            return;
+        }
+    }
 
+    // instruct game logic to load
+    binding::raise_event(py, entry_module, &engine::Event::Load);
+
+    // time keeping for 60hz fixed update logic loop
     let delta_time = Duration::from_secs_f64(1. / 60.);
     let mut current_time = Instant::now();
     let mut accumulated_time = Duration::from_secs(0);
@@ -75,14 +70,15 @@ pub fn start<R: resources::Provider + 'static>(resource_provider: R) {
         current_time = Instant::now();
 
         for event in engine!().poll_events() {
-            binding::raise_event(entry_module, event);
+            binding::raise_event(py, entry_module, &event);
         }
 
         while accumulated_time >= delta_time {
             accumulated_time -= delta_time;
             binding::raise_event(
+                py,
                 entry_module,
-                engine::Event::Step {
+                &engine::Event::Step {
                     delta_time: delta_time.as_secs_f64(),
                 },
             );
@@ -93,16 +89,4 @@ pub fn start<R: resources::Provider + 'static>(resource_provider: R) {
 
     pyrite_log!("Cleaning up pyrite engine resources");
     binding::destroy_engine();
-}
-
-fn inject_python_module(py: Python, module: &PyModule) {
-    py.import("sys")
-        .expect("failed to import python sys module")
-        .dict()
-        .get_item("modules")
-        .expect("failed to get python modules dictionary")
-        .downcast_mut::<PyDict>()
-        .expect("failed to turn sys.modules into a PyDict")
-        .set_item(module.name().expect("module missing name"), module)
-        .expect("failed to inject module");
 }

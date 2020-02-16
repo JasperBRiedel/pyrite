@@ -56,10 +56,23 @@ impl Timestep {
 
 #[derive(Clone, Debug)]
 pub enum Event {
+    Load,
     Button { button: String, transition: String },
     Scroll { x: i32, y: i32 },
     Text { text: String },
     Step { delta_time: f64 },
+}
+
+impl Event {
+    pub fn type_str(&self) -> &str {
+        match self {
+            Self::Load => "load",
+            Self::Button { .. } => "button",
+            Self::Scroll { .. } => "scroll",
+            Self::Text { .. } => "text",
+            Self::Step { .. } => "step",
+        }
+    }
 }
 
 pub struct Engine {
@@ -86,7 +99,7 @@ impl Engine {
     }
 
     pub fn get_running(&self) -> bool {
-        self.running
+        self.running && !self.platform.close_requested
     }
 
     pub fn load_configuration(&mut self, config: Config) {
