@@ -89,7 +89,10 @@ pub fn raise_event(py: Python, entry_module: &PyModule, event: &Event) {
         Ok(_) => (),
         Err(e) => {
             // can probably capture game errors here
-            pyrite_log!("Failed to invoke __event__ with event {}", event_type);
+            pyrite_log!(
+                "An error occurred in the game module while processing a {} event:",
+                event_type
+            );
             e.print(py);
         }
     }
