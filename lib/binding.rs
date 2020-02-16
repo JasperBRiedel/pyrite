@@ -45,7 +45,6 @@ pub fn inject_engine(py: Python, engine: Engine) {
 
     // create python engine module and bind functions
     let engine_module = PyModule::new(py, "pyrite").expect("failed to initialise engine module");
-    bind!(engine_module, run);
     bind!(engine_module, game_data);
     bind!(engine_module, exit);
     bind!(engine_module, mouse_position);
@@ -148,15 +147,6 @@ fn get_game_data() -> &'static PyDict {
         let py = Python::assume_gil_acquired();
         GAME_DATA.get_or_insert_with(|| PyDict::new(py))
     }
-}
-
-/// run(configuration)
-/// --
-/// run the engine life cycle
-#[pyfunction]
-fn run(config: PyObject) -> bool {
-    let config = pyobject_into_configuration(config);
-    engine!().run(config)
 }
 
 /// game_data()
@@ -279,49 +269,4 @@ fn event_data_into_pyobject(event: &Event) -> PyObject {
     };
 
     return py_event.to_object(py);
-}
-
-fn pyobject_into_configuration(config: PyObject) -> Config {
-    let py = unsafe { Python::assume_gil_acquired() };
-
-    let config: HashMap<String, PyObject> = config
-        .extract(py)
-        .expect("Type error when reading the configuration structure");
-
-    let application_name = extract_or!(
-        py,
-        config,
-        "application_name",
-        String,
-        "default".to_string()
-    );
-
-    let application_version = extract_or!(
-        py,
-        config,
-        "application_version",
-        String,
-        "0.0.0".to_string()
-    );
-
-    let viewport_scale = extract_or!(py, config, "viewport_scale", i32, 2);
-    let viewport_width = extract_or!(py, config, "viewport_width", i32, 10);
-    let viewport_height = extract_or!(py, config, "viewport_height", i32, 10);
-
-    let tileset_width = extract_or!(py, config, "tileset_width", u32, 3);
-    let tileset_height = extract_or!(py, config, "tileset_height", u32, 3);
-    let tileset_path = extract_or!(py, config, "tileset_path", String, "default.png".to_owned());
-    let tile_names = extract_or!(py, config, "tile_names", Vec<String>, Vec::new());
-
-    Config {
-        application_name,
-        application_version,
-        viewport_scale,
-        viewport_width,
-        viewport_height,
-        tileset_width,
-        tileset_height,
-        tileset_path,
-        tile_names,
-    }
 }

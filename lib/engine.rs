@@ -2,9 +2,8 @@ use crate::graphics;
 use crate::platform::Platform;
 use crate::pyrite_log;
 use crate::resources;
-use std::collections::HashMap;
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 #[derive(Debug)]
 pub struct Config {
@@ -17,41 +16,6 @@ pub struct Config {
     pub tileset_height: u32,
     pub tileset_path: String,
     pub tile_names: Vec<String>,
-}
-
-struct Timestep {
-    accumulator: Duration,
-    last_step: Instant,
-}
-
-impl Timestep {
-    fn new() -> Self {
-        Timestep {
-            accumulator: Duration::from_secs(0),
-            last_step: Instant::now(),
-        }
-    }
-
-    fn should_consume_fixed_time(&self) -> bool {
-        todo!()
-    }
-
-    fn consume_fixed_time(&mut self) -> Duration {
-        todo!()
-    }
-
-    fn step(&mut self, interval: f64) -> bool {
-        let delta_time = 1. / interval;
-        self.accumulator += self.last_step.elapsed();
-        self.last_step = Instant::now();
-
-        if self.accumulator.as_secs_f64() >= delta_time {
-            self.accumulator -= Duration::from_secs_f64(delta_time);
-            return true;
-        }
-
-        return false;
-    }
 }
 
 #[derive(Clone, Debug)]
@@ -78,8 +42,6 @@ impl Event {
 pub struct Engine {
     config: Option<Config>,
     resources: Box<dyn resources::Provider>,
-    timesteps: HashMap<String, Timestep>,
-    current_timestep_identifier: String,
     platform: Platform,
     graphics_context: Option<graphics::Context>,
     running: bool,
@@ -90,8 +52,6 @@ impl Engine {
         Self {
             config: None,
             resources,
-            timesteps: HashMap::new(),
-            current_timestep_identifier: String::from("outer"),
             graphics_context: None,
             platform: Platform::new(),
             running: true,
@@ -118,43 +78,6 @@ impl Engine {
         }
     }
 
-    // API Function
-    pub fn run(&mut self, config: Config) -> bool {
-        // // if config is none then this is the first call to run.
-        // // on the first call we load the configuration and initialise the graphics context.
-        // if self.config.is_none() {
-        //     pyrite_log!("Loading configuration");
-        //     log_config(&config);
-        //     self.config = Some(config);
-
-        //     let graphics_context = graphics::Context::new(
-        //         self.config.as_ref().unwrap(),
-        //         &self.platform,
-        //         &self.resources,
-        //     );
-
-        //     self.graphics_context = Some(graphics_context);
-        // }
-
-        // // Render a frame to the screen
-        // let frame_presented = self.graphics_context.as_mut().unwrap().present_frame();
-
-        // // The renderer optimises and will sometimes choose not to render or swap buffers, in this
-        // // case we will sleep the program for a moment when v-sync is enabled to give the cpu a
-        // // break.
-        // if !frame_presented {
-        //     thread::sleep(Duration::from_millis(8));
-        // }
-
-        // if !self.running || self.platform.close_requested {
-        //     self.clean();
-        //     return false;
-        // }
-
-        // return true;
-        unimplemented!()
-    }
-
     pub fn render(&mut self) {
         let frame_presented = self.graphics_context.as_mut().unwrap().present_frame();
 
@@ -164,32 +87,6 @@ impl Engine {
         if !frame_presented {
             thread::sleep(Duration::from_millis(8));
         }
-    }
-
-    // API Function
-    pub fn timestep(&mut self, timestep_identifier: String, interval: f64) -> bool {
-        // let timestep = self
-        //     .timesteps
-        //     .entry(timestep_identifier.clone())
-        //     .or_insert_with(|| {
-        //         pyrite_log!("Registered new timestep \"{}\"", timestep_identifier);
-        //         Timestep::new()
-        //     });
-
-        // self.platform.service();
-
-        // let should_step = timestep.step(interval);
-
-        // if should_step {
-        //     self.current_timestep_identifier = timestep_identifier;
-        // } else {
-        //     if self.current_timestep_identifier != "outer" {
-        //         self.current_timestep_identifier = String::from("outer");
-        //     }
-        // }
-
-        // return should_step;
-        unimplemented!()
     }
 
     // API Function

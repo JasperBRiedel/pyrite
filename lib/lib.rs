@@ -4,7 +4,7 @@ mod graphics;
 mod platform;
 pub mod resources;
 
-use pyo3::{prelude::*, types::PyDict};
+use pyo3::prelude::*;
 use std::time::{Duration, Instant};
 
 #[macro_export]
