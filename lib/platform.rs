@@ -123,16 +123,16 @@ impl Platform {
                     }
                     WindowEvent::MouseInput { button, state, .. } => {
                         let (transition, state) = match state {
-                            ElementState::Pressed => ("pressed".to_owned(), ButtonState::Down),
-                            ElementState::Released => ("released".to_owned(), ButtonState::Up),
+                            ElementState::Pressed => ("PRESSED".to_owned(), ButtonState::Down),
+                            ElementState::Released => ("RELEASED".to_owned(), ButtonState::Up),
                         };
 
                         let (button_code, button_name) = match button {
-                            MouseButton::Left => ("M1".to_owned(), Some("mouse_left".to_owned())),
+                            MouseButton::Left => ("M1".to_owned(), Some("MOUSE_LEFT".to_owned())),
                             MouseButton::Middle => {
-                                ("M2".to_owned(), Some("mouse_middle".to_owned()))
+                                ("M2".to_owned(), Some("MOUSE_MIDDLE".to_owned()))
                             }
-                            MouseButton::Right => ("M3".to_owned(), Some("mouse_right".to_owned())),
+                            MouseButton::Right => ("M3".to_owned(), Some("MOUSE_RIGHT".to_owned())),
                             MouseButton::Other(code) => (format!("M{}", code), None),
                         };
 
@@ -158,8 +158,8 @@ impl Platform {
                     }
                     WindowEvent::KeyboardInput { input, .. } => {
                         let (transition, state) = match input.state {
-                            ElementState::Pressed => ("pressed".to_owned(), ButtonState::Down),
-                            ElementState::Released => ("released".to_owned(), ButtonState::Up),
+                            ElementState::Pressed => ("PRESSED".to_owned(), ButtonState::Down),
+                            ElementState::Released => ("RELEASED".to_owned(), ButtonState::Up),
                         };
 
                         let scancode_str = format!("K{}", input.scancode);

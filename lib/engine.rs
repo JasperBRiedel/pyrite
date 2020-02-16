@@ -30,11 +30,11 @@ pub enum Event {
 impl Event {
     pub fn type_str(&self) -> &str {
         match self {
-            Self::Load => "load",
-            Self::Button { .. } => "button",
-            Self::Scroll { .. } => "scroll",
-            Self::Text { .. } => "text",
-            Self::Step { .. } => "step",
+            Self::Load => "LOAD",
+            Self::Button { .. } => "BUTTON",
+            Self::Scroll { .. } => "SCROLL",
+            Self::Text { .. } => "TEXT",
+            Self::Step { .. } => "STEP",
         }
     }
 }

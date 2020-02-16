@@ -35,7 +35,7 @@ def __config__():
     }
 
 def __event__(event_type, event_data, game_data):
-    if event_type == "load":
+    if event_type == "LOAD":
         game_data["draw_trees_timer"] = 0.0;
 
         game_data["viewport_width"] = 10
@@ -43,11 +43,11 @@ def __event__(event_type, event_data, game_data):
         game_data["viewport_scale"] = 2
         pass
 
-    if event_type == "button":
+    if event_type == "BUTTON":
         if event_data["button"] == "ESCAPE":
             pyrite.exit()
 
-        if event_data["transition"] == "pressed":
+        if event_data["transition"] == "PRESSED":
             if event_data["button"] == "Q":
                 game_data["viewport_width"] += 1
             if event_data["button"] == "W":
@@ -67,7 +67,7 @@ def __event__(event_type, event_data, game_data):
                 game_data["viewport_scale"]
             )
 
-    if event_type == "step":
+    if event_type == "STEP":
         game_data["draw_trees_timer"] -= event_data["delta_time"]
 
         if game_data["draw_trees_timer"] <= 0.0:
