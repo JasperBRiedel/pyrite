@@ -45,6 +45,10 @@
 
             }
 
+            .block {
+                display: block;
+            }
+
             .indent {
                 margin-left: 2em;
             }
@@ -90,77 +94,74 @@
         <main>
             <h1>Pyrite - API Reference</h1>
             <nav>
-                <a href="#run">run() - Configure and start the engine</a>
-                <a href="#entry">__entry__() - Engine life cycle callback</a>
-                <a href="#timestep">timestep() - Create update loops at different intervals</a>
+                <a href="#config">__config__() - Pyrite configuration callback</a>
+                <a href="#event">__event__() - Engine life cycle callback</a>
+                <a href="#game_data">game_data() - The preferred way of storing global game state</a>
                 <a href="#exit">exit() - Initiate a graceful exit of the engine</a>
                 <a href="#mouse_position">mouse_position() - Get the location of the mouse</a>
                 <a href="#set_viewport">set_viewport() - Configure the dimensions and scale of the window</a>
                 <a href="#set_tile">set_tile() - Set tile draw properties</a>
                 <a href="#button_down">button_down() - Get the down state of a button input</a>
-                <a href="#poll_events">poll_events() - Responding to engine events</a>
                 <a href="#resource_read">resource_read() - Loading packaged resources</a>
                 <a href="#resource_exists">resource_exists() - Check if packaged resources exist</a>
                 <a href="#constants">Constants - Events and Buttons</a>
             </nav>
-            <section id="run">
+            <section id="config">
                 <header>
-                    <h2>run() - Configure and start the engine</h2>
+                    <h2>__config__() - Pyrite configuration callback</h2>
                     <summary>
-                        <p>Initialise the engine with the passed configuration structure</p>
-                        <p>Configuration structure example....</p>
+                        <p>Initialise the engine with the returned configuration structure</p>
+                        <p>Must be defined in the entry module.</p>
                     </summary>
                 </header>
                 <article>
                     <code>
-                        <span class="func">pyrite.run</span>
-                            <span class="parens">
-                                <span class="ident">config</span>
+                        <span class="func">def __config__</span>
+                        <span class="parens"></span>
+                        <span class="func">:</span>
+                        <br/>
+                        <span class="indent">
+                            return {
+                            <span class="indent block">
+                                <span class="indent">
+                                    "application_name": <span class="ident comma">application_name</span>
+                                </span>
+                                <br/>
+                                <span class="indent">
+                                    "application_version": <span class="ident comma">application_version</span>
+                                </span>
+                                <br/>
+                                <span class="indent">
+                                    "viewport_scale": <span class="ident comma">viewport_scale</span>
+                                </span>
+                                <br/>
+                                <span class="indent">
+                                    "viewport_width": <span class="ident comma">viewport_width</span>
+                                </span>
+                                <br/>
+                                <span class="indent">
+                                    "viewport_height": <span class="ident comma">viewport_height</span>
+                                </span>
+                                <br/>
+                                <span class="indent">
+                                    "tileset_path": <span class="ident comma">tileset_path</span>
+                                </span>
+                                <br/>
+                                <span class="indent">
+                                    "tileset_width": <span class="ident comma">tileset_width</span>
+                                </span>
+                                <br/>
+                                <span class="indent">
+                                    "tileset_height": <span class="ident comma">tileset_height</span>
+                                </span>
+                                <br/>
+                                <span class="indent">
+                                    "tile_names": <span class="ident">tile_names</span>
+                                </span>
+                                <br/>
+                                }
                             </span>
-                    </code>
-                    <span class="param">config</span>
-                    <span class="param-desc">Engine configuration dictionary</span>
-                    <h3>Configuration structure</h3>
-                    <code>
-                        {
-                        <br/>
-                        <span class="indent">
-                            "application_name": <span class="ident comma">application_name</span>
                         </span>
-                        <br/>
-                        <span class="indent">
-                            "application_version": <span class="ident comma">application_version</span>
-                        </span>
-                        <br/>
-                        <span class="indent">
-                            "viewport_scale": <span class="ident comma">viewport_scale</span>
-                        </span>
-                        <br/>
-                        <span class="indent">
-                            "viewport_width": <span class="ident comma">viewport_width</span>
-                        </span>
-                        <br/>
-                        <span class="indent">
-                            "viewport_height": <span class="ident comma">viewport_height</span>
-                        </span>
-                        <br/>
-                        <span class="indent">
-                            "tileset_path": <span class="ident comma">tileset_path</span>
-                        </span>
-                        <br/>
-                        <span class="indent">
-                            "tileset_width": <span class="ident comma">tileset_width</span>
-                        </span>
-                        <br/>
-                        <span class="indent">
-                            "tileset_height": <span class="ident comma">tileset_height</span>
-                        </span>
-                        <br/>
-                        <span class="indent">
-                            "tile_names": <span class="ident">tile_names</span>
-                        </span>
-                        <br/>
-                        }
                     </code>
                     <span class="param">application_name</span>
                     <span class="param-desc">Used to identify the application and set the window
@@ -190,45 +191,63 @@
                     <br/>
                     <span class="param">tile_names</span>
                     <span class="param-desc">An array of tile names to be assigned to tiles in left
-                    to right, top to bottom order. Tiles without pixel data won't be indexed.</span>
+                    to right, top to bottom order. Fully transparent tiles won't be indexed.</span>
                 </article>
             </section>
-            <section id="entry">
+            <section id="event">
                 <header>
-                    <h2>__entry__() - Engine life cycle callback</h2>
+                    <h2>__event__() - Engine life cycle callback</h2>
                     <summary>
-                        <p>The entry callback is invoked by the engine after initialisation.
-                            pyrite.run, pyrite.timestep, and pyrite.poll_events must be invoked
-                            inside this function.</p>
-                        <p>Must be defined inside the entry file / module</p>
+                        <p>The event callback is invoked by the engine to progress the game state.</p>
+                        <p>Used to update game state based on inputs and elapsed time.</p>
+                        <p>Must be defined in the entry module.</p>
                     </summary>
                 </header>
                 <article>
                     <code>
-                        <span class="func">__entry__():</span>
+                        <span class="func">def __event__</span>
+                        <span class="parens">
+                            <span class="ident comma">event_type</span>
+                            <span class="ident comma">event_data</span>
+                            <span class="ident">game_data</span>
+                        </span>
+                        <span class="func">:</span>
                         <br/>
                         <span class="indent func">pass</span>
                     </code>
+                    <span class="param">event_type</span>
+                    <span class="param-desc">A string containing an event type constant. See the
+                        constants section for details.</span>
+                    <br/>
+                    <span class="param">event_data</span>
+                    <span class="param-desc">A dictionary containing event specific data. See the
+                        events section for details.</span>
+                    <br/>
+                    <span class="param">game_data</span>
+                    <span class="param-desc">A reference to a global dictionary intended for holding
+                    game state / data. Using this mechanism is preferred over global variables.</span>
                 </article>
             </section>
-            <section id="timestep">
+            <section id="game_data">
                 <header>
-                    <h2>timestep() - Create update loops at different intervals</h2>
+                    <h2>game_data() - The preferred way of storing global game state</h2>
                     <summary>
-                        <p>Allows the creation of various update loops that run at a predetermined
-                            interval</p>
+                        <p>Access the global game state / data dictionary.</p>
                     </summary>
                 </header>
                 <article>
                     <code>
-                        <span class="func">pyrite.timestep</span>
+                        <span class="func">pyrite.game_data</span>
                             <span class="parens">
-                                <span class="ident">interval</span>
+                            </span>
+                            <span class="func">return<span>
+                            <span class="parens">
+                                <span class="ident">game_data</span>
                             </span>
                     </code>
-                    <span class="param">interval</span>
-                    <span class="param-desc">Update rate in hertz. ie. A value of 10 will update 10
-                    times per second.</span>
+                    <span class="param">game_data</span>
+                    <span class="param-desc">A reference to a global dictionary intended for holding
+                    game state / data. Using this mechanism is preferred over global variables.</span>
                 </article>
             </section>
             <section id="exit">
@@ -349,29 +368,34 @@
                     <code>
                         <span class="func">pyrite.set_tile</span>
                             <span class="parens">
-                                <span class="parens">
+                                <br />
+                                <span class="indent parens">
                                     <span class="ident">x</span>
                                     <span class="ident">y</span>
                                 </span>
                                 <br />
                                 <span class="indent ident">top_name</span>
-                                <span class="parens">
+                                <br />
+                                <span class="indent parens">
                                     <span class="ident">top_red</span>
                                     <span class="ident">top_green</span>
                                     <span class="ident">top_blue</span>
                                 </span>
-                                <span class="parens">
+                                <br />
+                                <span class="indent parens">
                                     <span class="ident">top_flip_x</span>
                                     <span class="ident">top_flip_y</span>
                                 </span>
                                 <br />
                                 <span class="indent ident">bottom_name</span>
-                                <span class="parens">
+                                <br />
+                                <span class="indent parens">
                                     <span class="ident">bottom_red</span>
                                     <span class="ident">bottom_green</span>
                                     <span class="ident">bottom_blue</span>
                                 </span>
-                                <span class="parens">
+                                <br />
+                                <span class="indent parens">
                                     <span class="ident">bottom_flip_x</span>
                                     <span class="ident">bottom_flip_y</span>
                                 </span>
@@ -411,6 +435,9 @@
                     <h2>button_down() - Get the down state of a button input</h2>
                     <summary>
                         <p>Returns true if the specified button is down.</p>
+                        <p>Supports checking if many buttons are down, using button constants
+                            separated by plus (+) symbols. Example "A+B+MOUSE_LEFT" would require
+                            the A and B keyboard keys, and the left mouse button to be down.</p>
                     </summary>
                 </header>
                 <article>
@@ -429,30 +456,6 @@
                     <br />
                     <span class="param">down</span>
                     <span class="param-desc">True if the specified button is currently down.</span>
-                </article>
-            </section>
-            <section id="poll_events">
-                <header>
-                    <h2>poll_events() - Responding to engine events</h2>
-                    <summary>
-                        <p>Returns a list of events that's usually iterated and drives some amount
-                            of game logic.</p>
-                        <p>Use events to respond to button presses, mouse scroll, and text entry.</p>
-                        <p>Event data access information here....</p>
-                    </summary>
-                </header>
-                <article>
-                    <code>
-                        <span class="func">pyrite.poll_events</span>
-                            <span class="parens">
-                            </span>
-                            <span class="func">return<span>
-                            <span class="parens">
-                                <span class="ident">event_queue</span>
-                            </span>
-                    </code>
-                    <span class="param">event_queue</span>
-                    <span class="param-desc">An array of events popped of the engine event queue.</span>
                 </article>
             </section>
             <section id="resource_read">
@@ -507,20 +510,28 @@
             </section>
             <section id="constants">
                 <header>
-                    <h2>Event constants</h2>
+                    <h2>Event types / data</h2>
                     <summary>
                     </summary>
                 </header>
                 <article>
                     <code>
-                        <span class="ident">button</span><br/>
-                        <span class="ident">scroll</span><br/>
-                        <span class="ident">text</span><br/>
+                        <span class="ident">LOAD</span><br/>
+                        <span class="ident">BUTTON</span><br/>
+                        <span class="ident">SCROLL</span><br/>
+                        <span class="ident">TEXT</span><br/>
+                        <span class="ident">STEP</span><br/>
+                    </code>
+                    <h3>Load event</h3>
+                    <p>Raised when the engine is ready for the game to load.</p>
+                    <code>
+                        {}
                     </code>
                     <h3>Button event</h3>
+                    <p>Raised when the operating system reports a keyboard or mouse button
+                        transition.</p>
                     <code>
                         {
-                            "type": "button",
                             "button": <span class="ident">button_constant</span>
                             "transition": <span class="ident">transition_constant</span>
                         }
@@ -532,13 +543,14 @@
                     <span class="param-desc">String value containing a transition constant.</span>
                     <h4>Transition constants</h4>
                     <code>
-                        <span class="ident">pressed</span><br/>
-                        <span class="ident">released</span><br/>
+                        <span class="ident">PRESSED</span><br/>
+                        <span class="ident">RELEASED</span><br/>
                     </code>
                     <h3>Scroll event</h3>
+                    <p>Raised when the operating system reports a scroll wheel change from the
+                        mouse.</p>
                     <code>
                         {
-                            "type": "scroll",
                             "x": <span class="ident">x_delta</span>
                             "y": <span class="ident">y_delta</span>
                         }
@@ -551,162 +563,199 @@
                     <span class="param-desc">A signed integer containing the scroll delta since the
                     last event.</span>
                     <h3>Text event</h3>
+                    <p>Raised when text input is received from the keyboard.</p>
                     <code>
                         {
-                            "type": "text",
                             "text": <span class="ident">text_input</span>
                         }
                     </code>
                     <span class="param">text_input</span>
                     <span class="param-desc">A string containing any characters entered since the last event.</span>
+                    <h3>Step event</h3>
+                    <p>Repeatedly raised at 60hz, used for real-time logic and game updates.</p>
+                    <code>
+                        {
+                            "delta_time": <span class="ident">delta_time</span>
+                        }
+                    </code>
+                    <span class="param">delta_time</span>
+                    <span class="param-desc">A floating point number representing the amount of time
+                    since the last step on seconds.</span>
                 </article>
                 <header>
                     <h2>Button constants</h2>
                     <summary>
-                        <p>Button name constants, passed as strings to various functions</p>
+                        <p>Button name constants, passed as strings to various functions. Always
+                            uppercase.</p>
                     </summary>
                 </header>
+                <h3>Scancode</h3>
+                <p>Scancodes should be used when you care about the location of the button more than
+                the symbol/meaning of the button.</p>
                 <article>
                     <code>
-                        <span class="ident">number0</span><br/>
-                        <span class="ident">number1</span><br/>
-                        <span class="ident">number2</span><br/>
-                        <span class="ident">number3</span><br/>
-                        <span class="ident">number4</span><br/>
-                        <span class="ident">number5</span><br/>
-                        <span class="ident">number6</span><br/>
-                        <span class="ident">number7</span><br/>
-                        <span class="ident">number8</span><br/>
-                        <span class="ident">number9</span><br/>
-                        <span class="ident">a</span><br/>
-                        <span class="ident">b</span><br/>
-                        <span class="ident">c</span><br/>
-                        <span class="ident">d</span><br/>
-                        <span class="ident">e</span><br/>
-                        <span class="ident">f</span><br/>
-                        <span class="ident">g</span><br/>
-                        <span class="ident">h</span><br/>
-                        <span class="ident">i</span><br/>
-                        <span class="ident">j</span><br/>
-                        <span class="ident">k</span><br/>
-                        <span class="ident">l</span><br/>
-                        <span class="ident">m</span><br/>
-                        <span class="ident">n</span><br/>
-                        <span class="ident">o</span><br/>
-                        <span class="ident">p</span><br/>
-                        <span class="ident">q</span><br/>
-                        <span class="ident">r</span><br/>
-                        <span class="ident">s</span><br/>
-                        <span class="ident">t</span><br/>
-                        <span class="ident">u</span><br/>
-                        <span class="ident">v</span><br/>
-                        <span class="ident">w</span><br/>
-                        <span class="ident">x</span><br/>
-                        <span class="ident">y</span><br/>
-                        <span class="ident">z</span><br/>
-                        <span class="ident">escape</span><br/>
-                        <span class="ident">f1</span><br/>
-                        <span class="ident">f2</span><br/>
-                        <span class="ident">f3</span><br/>
-                        <span class="ident">f4</span><br/>
-                        <span class="ident">f5</span><br/>
-                        <span class="ident">f6</span><br/>
-                        <span class="ident">f7</span><br/>
-                        <span class="ident">f8</span><br/>
-                        <span class="ident">f9</span><br/>
-                        <span class="ident">f10</span><br/>
-                        <span class="ident">f11</span><br/>
-                        <span class="ident">f12</span><br/>
-                        <span class="ident">f13</span><br/>
-                        <span class="ident">f14</span><br/>
-                        <span class="ident">f15</span><br/>
-                        <span class="ident">f16</span><br/>
-                        <span class="ident">f17</span><br/>
-                        <span class="ident">f18</span><br/>
-                        <span class="ident">f19</span><br/>
-                        <span class="ident">f20</span><br/>
-                        <span class="ident">f21</span><br/>
-                        <span class="ident">f22</span><br/>
-                        <span class="ident">f23</span><br/>
-                        <span class="ident">f24</span><br/>
-                        <span class="ident">snapshot</span><br/>
-                        <span class="ident">scroll</span><br/>
-                        <span class="ident">pause</span><br/>
-                        <span class="ident">insert</span><br/>
-                        <span class="ident">home</span><br/>
-                        <span class="ident">delete</span><br/>
-                        <span class="ident">end</span><br/>
-                        <span class="ident">page_down</span><br/>
-                        <span class="ident">page_up</span><br/>
-                        <span class="ident">left</span><br/>
-                        <span class="ident">up</span><br/>
-                        <span class="ident">right</span><br/>
-                        <span class="ident">down</span><br/>
-                        <span class="ident">back</span><br/>
-                        <span class="ident">return</span><br/>
-                        <span class="ident">space</span><br/>
-                        <span class="ident">compose</span><br/>
-                        <span class="ident">caret</span><br/>
-                        <span class="ident">numlock</span><br/>
-                        <span class="ident">numpad0</span><br/>
-                        <span class="ident">numpad1</span><br/>
-                        <span class="ident">numpad2</span><br/>
-                        <span class="ident">numpad3</span><br/>
-                        <span class="ident">numpad4</span><br/>
-                        <span class="ident">numpad5</span><br/>
-                        <span class="ident">numpad6</span><br/>
-                        <span class="ident">numpad7</span><br/>
-                        <span class="ident">numpad8</span><br/>
-                        <span class="ident">numpad9</span><br/>
-                        <span class="ident">backslash</span><br/>
-                        <span class="ident">calculator</span><br/>
-                        <span class="ident">capital</span><br/>
-                        <span class="ident">colon</span><br/>
-                        <span class="ident">comma</span><br/>
-                        <span class="ident">convert</span><br/>
-                        <span class="ident">decimal</span><br/>
-                        <span class="ident">divide</span><br/>
-                        <span class="ident">equals</span><br/>
-                        <span class="ident">grave</span><br/>
-                        <span class="ident">kana</span><br/>
-                        <span class="ident">kanji</span><br/>
-                        <span class="ident">left_alt</span><br/>
-                        <span class="ident">left_bracket</span><br/>
-                        <span class="ident">left_control</span><br/>
-                        <span class="ident">left_shift</span><br/>
-                        <span class="ident">left_super</span><br/>
-                        <span class="ident">mail</span><br/>
-                        <span class="ident">media_select</span><br/>
-                        <span class="ident">media_stop</span><br/>
-                        <span class="ident">minus</span><br/>
-                        <span class="ident">multiply</span><br/>
-                        <span class="ident">mute</span><br/>
-                        <span class="ident">my_computer</span><br/>
-                        <span class="ident">nav_forward</span><br/>
-                        <span class="ident">nav_backward</span><br/>
-                        <span class="ident">next_track</span><br/>
-                        <span class="ident">no_convert</span><br/>
-                        <span class="ident">numpad_comma</span><br/>
-                        <span class="ident">numpad_enter</span><br/>
-                        <span class="ident">numpad_equals</span><br/>
-                        <span class="ident">period</span><br/>
-                        <span class="ident">play_pause</span><br/>
-                        <span class="ident">power</span><br/>
-                        <span class="ident">prev_track</span><br/>
-                        <span class="ident">right_alt</span><br/>
-                        <span class="ident">right_bracket</span><br/>
-                        <span class="ident">right_control</span><br/>
-                        <span class="ident">right_shift</span><br/>
-                        <span class="ident">right_super</span><br/>
-                        <span class="ident">semicolon</span><br/>
-                        <span class="ident">slash</span><br/>
-                        <span class="ident">sleep</span><br/>
-                        <span class="ident">stop</span><br/>
-                        <span class="ident">subtract</span><br/>
-                        <span class="ident">tab</span><br/>
-                        <span class="ident">underline</span><br/>
-                        <span class="ident">volume_up</span><br/>
-                        <span class="ident">volume_down</span><br/>
+                        <span class="ident">K_0</span><br/>
+                        <span class="ident">K_1</span><br/>
+                        <span class="ident">K_2</span><br/>
+                        <span class="ident">...</span><br/>
+                        <span class="ident">K_997</span><br/>
+                        <span class="ident">K_998</span><br/>
+                        <span class="ident">K_999</span><br/>
+                    </code>
+                </article>
+                <h3>Named</h3>
+                <p>Named buttons should be used when you care about the symbol/meaning of the button
+                more than the location of the button.</p>
+                <article>
+                    <code>
+                        <span class="ident">MOUSE_LEFT</span><br/>
+                        <span class="ident">MOUSE_MIDDLE</span><br/>
+                        <span class="ident">MOUSE_RIGHT</span><br/>
+                        <span class="ident">MOUSE_1</span><br/>
+                        <span class="ident">MOUSE_2</span><br/>
+                        <span class="ident">MOUSE_3</span><br/>
+                        <span class="ident">MOUSE_4</span><br/>
+                        <span class="ident">MOUSE_5</span><br/>
+                        <span class="ident">MOUSE_6</span><br/>
+                        <span class="ident">NUMBER0</span><br/>
+                        <span class="ident">NUMBER1</span><br/>
+                        <span class="ident">NUMBER2</span><br/>
+                        <span class="ident">NUMBER3</span><br/>
+                        <span class="ident">NUMBER4</span><br/>
+                        <span class="ident">NUMBER5</span><br/>
+                        <span class="ident">NUMBER6</span><br/>
+                        <span class="ident">NUMBER7</span><br/>
+                        <span class="ident">NUMBER8</span><br/>
+                        <span class="ident">NUMBER9</span><br/>
+                        <span class="ident">A</span><br/>
+                        <span class="ident">B</span><br/>
+                        <span class="ident">C</span><br/>
+                        <span class="ident">D</span><br/>
+                        <span class="ident">E</span><br/>
+                        <span class="ident">F</span><br/>
+                        <span class="ident">G</span><br/>
+                        <span class="ident">H</span><br/>
+                        <span class="ident">I</span><br/>
+                        <span class="ident">J</span><br/>
+                        <span class="ident">K</span><br/>
+                        <span class="ident">L</span><br/>
+                        <span class="ident">M</span><br/>
+                        <span class="ident">N</span><br/>
+                        <span class="ident">O</span><br/>
+                        <span class="ident">P</span><br/>
+                        <span class="ident">Q</span><br/>
+                        <span class="ident">R</span><br/>
+                        <span class="ident">S</span><br/>
+                        <span class="ident">T</span><br/>
+                        <span class="ident">U</span><br/>
+                        <span class="ident">V</span><br/>
+                        <span class="ident">W</span><br/>
+                        <span class="ident">X</span><br/>
+                        <span class="ident">Y</span><br/>
+                        <span class="ident">Z</span><br/>
+                        <span class="ident">ESCAPE</span><br/>
+                        <span class="ident">F1</span><br/>
+                        <span class="ident">F2</span><br/>
+                        <span class="ident">F3</span><br/>
+                        <span class="ident">F4</span><br/>
+                        <span class="ident">F5</span><br/>
+                        <span class="ident">F6</span><br/>
+                        <span class="ident">F7</span><br/>
+                        <span class="ident">F8</span><br/>
+                        <span class="ident">F9</span><br/>
+                        <span class="ident">F10</span><br/>
+                        <span class="ident">F11</span><br/>
+                        <span class="ident">F12</span><br/>
+                        <span class="ident">F13</span><br/>
+                        <span class="ident">F14</span><br/>
+                        <span class="ident">F15</span><br/>
+                        <span class="ident">F16</span><br/>
+                        <span class="ident">F17</span><br/>
+                        <span class="ident">F18</span><br/>
+                        <span class="ident">F19</span><br/>
+                        <span class="ident">F20</span><br/>
+                        <span class="ident">F21</span><br/>
+                        <span class="ident">F22</span><br/>
+                        <span class="ident">F23</span><br/>
+                        <span class="ident">F24</span><br/>
+                        <span class="ident">SNAPSHOT</span><br/>
+                        <span class="ident">SCROLL</span><br/>
+                        <span class="ident">PAUSE</span><br/>
+                        <span class="ident">INSERT</span><br/>
+                        <span class="ident">HOME</span><br/>
+                        <span class="ident">DELETE</span><br/>
+                        <span class="ident">END</span><br/>
+                        <span class="ident">PAGE_DOWN</span><br/>
+                        <span class="ident">PAGE_UP</span><br/>
+                        <span class="ident">LEFT</span><br/>
+                        <span class="ident">UP</span><br/>
+                        <span class="ident">RIGHT</span><br/>
+                        <span class="ident">DOWN</span><br/>
+                        <span class="ident">BACK</span><br/>
+                        <span class="ident">RETURN</span><br/>
+                        <span class="ident">SPACE</span><br/>
+                        <span class="ident">COMPOSE</span><br/>
+                        <span class="ident">CARET</span><br/>
+                        <span class="ident">NUMLOCK</span><br/>
+                        <span class="ident">NUMPAD0</span><br/>
+                        <span class="ident">NUMPAD1</span><br/>
+                        <span class="ident">NUMPAD2</span><br/>
+                        <span class="ident">NUMPAD3</span><br/>
+                        <span class="ident">NUMPAD4</span><br/>
+                        <span class="ident">NUMPAD5</span><br/>
+                        <span class="ident">NUMPAD6</span><br/>
+                        <span class="ident">NUMPAD7</span><br/>
+                        <span class="ident">NUMPAD8</span><br/>
+                        <span class="ident">NUMPAD9</span><br/>
+                        <span class="ident">BACKSLASH</span><br/>
+                        <span class="ident">CALCULATOR</span><br/>
+                        <span class="ident">CAPITAL</span><br/>
+                        <span class="ident">COLON</span><br/>
+                        <span class="ident">COMMA</span><br/>
+                        <span class="ident">CONVERT</span><br/>
+                        <span class="ident">DECIMAL</span><br/>
+                        <span class="ident">DIVIDE</span><br/>
+                        <span class="ident">EQUALS</span><br/>
+                        <span class="ident">GRAVE</span><br/>
+                        <span class="ident">KANA</span><br/>
+                        <span class="ident">KANJI</span><br/>
+                        <span class="ident">LEFT_ALT</span><br/>
+                        <span class="ident">LEFT_BRACKET</span><br/>
+                        <span class="ident">LEFT_CONTROL</span><br/>
+                        <span class="ident">LEFT_SHIFT</span><br/>
+                        <span class="ident">LEFT_SUPER</span><br/>
+                        <span class="ident">MAIL</span><br/>
+                        <span class="ident">MEDIA_SELECT</span><br/>
+                        <span class="ident">MEDIA_STOP</span><br/>
+                        <span class="ident">MINUS</span><br/>
+                        <span class="ident">MULTIPLY</span><br/>
+                        <span class="ident">MUTE</span><br/>
+                        <span class="ident">MY_COMPUTER</span><br/>
+                        <span class="ident">NAV_FORWARD</span><br/>
+                        <span class="ident">NAV_BACKWARD</span><br/>
+                        <span class="ident">NEXT_TRACK</span><br/>
+                        <span class="ident">NO_CONVERT</span><br/>
+                        <span class="ident">NUMPAD_COMMA</span><br/>
+                        <span class="ident">NUMPAD_ENTER</span><br/>
+                        <span class="ident">NUMPAD_EQUALS</span><br/>
+                        <span class="ident">PERIOD</span><br/>
+                        <span class="ident">PLAY_PAUSE</span><br/>
+                        <span class="ident">POWER</span><br/>
+                        <span class="ident">PREV_TRACK</span><br/>
+                        <span class="ident">RIGHT_ALT</span><br/>
+                        <span class="ident">RIGHT_BRACKET</span><br/>
+                        <span class="ident">RIGHT_CONTROL</span><br/>
+                        <span class="ident">RIGHT_SHIFT</span><br/>
+                        <span class="ident">RIGHT_SUPER</span><br/>
+                        <span class="ident">SEMICOLON</span><br/>
+                        <span class="ident">SLASH</span><br/>
+                        <span class="ident">SLEEP</span><br/>
+                        <span class="ident">STOP</span><br/>
+                        <span class="ident">SUBTRACT</span><br/>
+                        <span class="ident">TAB</span><br/>
+                        <span class="ident">UNDERLINE</span><br/>
+                        <span class="ident">VOLUME_UP</span><br/>
+                        <span class="ident">VOLUME_DOWN</span><br/>
                     </code>
                 </article>
             </section>

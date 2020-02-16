@@ -94,8 +94,8 @@ def __event__(event_type, event_data, game_data):
                             (False, False),
                         );
 
-        mouse_left = pyrite.button_down("M1")
-        mouse_right = pyrite.button_down("M3")
+        mouse_left = pyrite.button_down("MOUSE_LEFT")
+        mouse_right = pyrite.button_down("MOUSE_RIGHT")
         pyrite.set_tile((4, 1), "pyrite", (255, 255, 255), (mouse_left, mouse_right))
         pyrite.set_tile((5, 1), "read_the_docs", (255, 255, 255), (False, False))
 

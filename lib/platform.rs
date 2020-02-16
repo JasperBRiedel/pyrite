@@ -128,12 +128,16 @@ impl Platform {
                         };
 
                         let (button_code, button_name) = match button {
-                            MouseButton::Left => ("M1".to_owned(), Some("MOUSE_LEFT".to_owned())),
-                            MouseButton::Middle => {
-                                ("M2".to_owned(), Some("MOUSE_MIDDLE".to_owned()))
+                            MouseButton::Left => {
+                                ("MOUSE_1".to_owned(), Some("MOUSE_LEFT".to_owned()))
                             }
-                            MouseButton::Right => ("M3".to_owned(), Some("MOUSE_RIGHT".to_owned())),
-                            MouseButton::Other(code) => (format!("M{}", code), None),
+                            MouseButton::Middle => {
+                                ("MOUSE_2".to_owned(), Some("MOUSE_MIDDLE".to_owned()))
+                            }
+                            MouseButton::Right => {
+                                ("MOUSE_3".to_owned(), Some("MOUSE_RIGHT".to_owned()))
+                            }
+                            MouseButton::Other(code) => (format!("MOUSE_{}", code), None),
                         };
 
                         self.button_states.insert(button_code.clone(), state);
