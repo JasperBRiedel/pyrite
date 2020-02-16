@@ -44,21 +44,21 @@ def __event__(event_type, event_data, game_data):
         pass
 
     if event_type == "button":
-        if event_data["button"] == "escape":
+        if event_data["button"] == "ESCAPE":
             pyrite.exit()
 
         if event_data["transition"] == "pressed":
-            if event_data["button"] == "q":
+            if event_data["button"] == "Q":
                 game_data["viewport_width"] += 1
-            if event_data["button"] == "w":
+            if event_data["button"] == "W":
                 game_data["viewport_width"] -= 1
-            if event_data["button"] == "a":
+            if event_data["button"] == "A":
                 game_data["viewport_height"] += 1
-            if event_data["button"] == "s":
+            if event_data["button"] == "S":
                 game_data["viewport_height"] -= 1
-            if event_data["button"] == "z":
+            if event_data["button"] == "Z":
                 game_data["viewport_scale"] += 1
-            if event_data["button"] == "x":
+            if event_data["button"] == "X":
                 game_data["viewport_scale"] -= 1
 
             pyrite.set_viewport(
