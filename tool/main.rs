@@ -221,6 +221,10 @@ fn write_player_binary(
         &tool_dir.join("python38.dll"),
         &builds_path.join("python38.dll"),
     );
+    try_copy(
+        &tool_dir.join("VC_redist.x64.exe"),
+        &builds_path.join("VC_redist.x64.exe"),
+    );
     let player_binary_path = builds_path.join(&binary_name);
 
     let player_binary_file = OpenOptions::new()
