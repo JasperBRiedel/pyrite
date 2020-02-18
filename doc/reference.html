@@ -572,7 +572,11 @@
                     <span class="param">text_input</span>
                     <span class="param-desc">A string containing any characters entered since the last event.</span>
                     <h3>Step event</h3>
-                    <p>Repeatedly raised at 60hz, used for real-time logic and game updates.</p>
+                    <p>Repeatedly raised at approximately 60hz, used for real-time logic and game updates.</p>
+                    <p>It's important to take delta time into consideration when calculating time
+                        sensitive values. The engine will allow logic to exceed the desired
+                        time to achieve 60hz, resulting in sometimes inconsistent time between update
+                        steps.
                     <code>
                         {
                             "delta_time": <span class="ident">delta_time</span>
@@ -580,7 +584,7 @@
                     </code>
                     <span class="param">delta_time</span>
                     <span class="param-desc">A floating point number representing the amount of time
-                    since the last step on seconds.</span>
+                    since the last step in seconds.</span>
                 </article>
                 <header>
                     <h2>Button constants</h2>
