@@ -5,6 +5,7 @@ mod platform;
 pub mod resources;
 
 use pyo3::prelude::*;
+use std::thread;
 use std::time::{Duration, Instant};
 
 #[macro_export]
@@ -58,43 +59,38 @@ pub fn start<R: resources::Provider + 'static>(resource_provider: R) {
     // instruct game logic to load
     binding::raise_event(py, entry_module, &engine::Event::Load);
 
-    // time keeping for 60hz fixed update logic loop
-    let delta_time = Duration::from_secs_f64(1. / 60.);
-    let mut current_time = Instant::now();
-    let mut accumulated_time = Duration::from_secs(0);
-    let max_frame_time = Duration::from_secs_f64(0.25);
-
-    // while running
+    // dynamic update loop, may run slower than the target rate, but never faster.
+    // It's important the game logic takes delta time into consideration, due to the variability of
+    // the time step delta.
+    let target_delta_time = Duration::from_secs_f64(1. / 60.);
+    let mut last_frame_time = Instant::now();
     while engine!().get_running() {
-        // calculate time since last frame, add it to the accumulator.
-        let frame_time = current_time.elapsed();
-
-        // cap frame time to a maximum value to prevent spiral of death.
-        if frame_time > max_frame_time {
-            accumulated_time += max_frame_time;
-            pyrite_log!("Timestep exceeded maximum safe value, slowing down time to compensate");
-        } else {
-            accumulated_time += frame_time;
-        }
-
-        current_time = Instant::now();
-
+        // dispatch engine / platform events
         for event in engine!().poll_events() {
             binding::raise_event(py, entry_module, &event);
         }
 
-        while accumulated_time >= delta_time {
-            accumulated_time -= delta_time;
-            binding::raise_event(
-                py,
-                entry_module,
-                &engine::Event::Step {
-                    delta_time: delta_time.as_secs_f64(),
-                },
-            );
-        }
+        // calculate time since last frame, add it to the accumulator.
+        let delta_time = last_frame_time.elapsed();
+        last_frame_time = Instant::now();
 
+        // Dispatch time step event with delta time
+        binding::raise_event(
+            py,
+            entry_module,
+            &engine::Event::Step {
+                delta_time: delta_time.as_secs_f64(),
+            },
+        );
+
+        // Allow the renderer to present a new frame if needed.
         engine!().render();
+
+        // if we still have remaining time before we reach our target rate, sleep.
+        if delta_time < target_delta_time {
+            let remaining_time = target_delta_time - delta_time;
+            thread::sleep(remaining_time);
+        }
     }
 
     pyrite_log!("Cleaning up pyrite engine resources");

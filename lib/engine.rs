@@ -2,8 +2,6 @@ use crate::graphics;
 use crate::platform::Platform;
 use crate::pyrite_log;
 use crate::resources;
-use std::thread;
-use std::time::Duration;
 
 #[derive(Debug)]
 pub struct Config {
@@ -78,20 +76,17 @@ impl Engine {
         }
     }
 
-    pub fn render(&mut self) {
+    pub fn render(&mut self) -> bool {
         let frame_presented = self.graphics_context.as_mut().unwrap().present_frame();
-
-        // The renderer optimises and will sometimes choose not to render or swap buffers, in this
-        // case we will sleep the program for a moment when v-sync is enabled to give the cpu a
-        // break.
-        if !frame_presented {
-            thread::sleep(Duration::from_millis(8));
-        }
+        // The renderer optimises and will sometimes choose not to render or swap buffers.
+        // return the value for the game or binding to decide on the best course of action in this
+        // case.
+        return frame_presented;
     }
 
     // API Function
     pub fn exit(&mut self) {
-        pyrite_log!("Exited requested");
+        pyrite_log!("Exit requested");
         self.running = false;
     }
 
