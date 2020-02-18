@@ -6,6 +6,7 @@ use std::collections::HashMap;
 
 pub static mut ENGINE_INSTANCE: Option<Engine> = None;
 static mut GAME_DATA: Option<&PyDict> = None;
+static mut CURRENT_DELTA_TIME: f64 = 0.0;
 
 macro_rules! bind {
     ($module:ident, $func:ident) => {
@@ -37,6 +38,12 @@ macro_rules! extract_or {
     };
 }
 
+pub fn set_delta_time(delta_time: f64) {
+    unsafe {
+        CURRENT_DELTA_TIME = delta_time;
+    }
+}
+
 pub fn inject_engine(py: Python, engine: Engine) {
     // set engine instance to be called by python module functions.
     unsafe {
@@ -47,6 +54,7 @@ pub fn inject_engine(py: Python, engine: Engine) {
     let engine_module = PyModule::new(py, "pyrite").expect("failed to initialise engine module");
     bind!(engine_module, game_data);
     bind!(engine_module, exit);
+    bind!(engine_module, delta_time);
     bind!(engine_module, mouse_position);
     bind!(engine_module, button_down);
     bind!(engine_module, set_viewport);
@@ -166,6 +174,14 @@ fn game_data() -> &'static PyDict {
 #[pyfunction]
 fn exit() {
     engine!().exit();
+}
+
+/// delta_time() -> dt
+/// --
+/// Return the time since the last frame
+#[pyfunction]
+fn delta_time() -> f64 {
+    unsafe { CURRENT_DELTA_TIME }
 }
 
 /// mouse_position(camera) -> (x, y)

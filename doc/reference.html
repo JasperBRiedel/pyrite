@@ -97,6 +97,7 @@
                 <a href="#config">__config__() - Pyrite configuration callback</a>
                 <a href="#event">__event__() - Engine life cycle callback</a>
                 <a href="#game_data">game_data() - The preferred way of storing global game state</a>
+                <a href="#delta_time">delta_time() - Consistent timing logic</a>
                 <a href="#exit">exit() - Initiate a graceful exit of the engine</a>
                 <a href="#mouse_position">mouse_position() - Get the location of the mouse</a>
                 <a href="#set_viewport">set_viewport() - Configure the dimensions and scale of the window</a>
@@ -248,6 +249,34 @@
                     <span class="param">game_data</span>
                     <span class="param-desc">A reference to a global dictionary intended for holding
                     game state / data. Using this mechanism is preferred over global variables.</span>
+                </article>
+            </section>
+            <section id="delta_time">
+                <header>
+                    <h2>delta_time() - Consistent timing logic</h2>
+                    <summary>
+                        <p>Due to the nature of the engine update loop and how some game logic may
+                        exceed the allocated execution time of step events, it's important we
+                        take delta time (the time since the last update) into consideration when
+                        dealing with time sensitive calculations.</p>
+                        <p>The following function provides the current delta time inside the step
+                            event</p>
+                        <p>Will return 0.0 if called outside of the step event</p>
+                        <p>The returned value can be accumulated to form a timer of seconds elapsed</p>
+                    </summary>
+                </header>
+                <article>
+                    <code>
+                        <span class="func">pyrite.delta_time</span>
+                            <span class="parens">
+                            </span>
+                            <span class="func">return<span>
+                            <span class="parens">
+                                <span class="ident">delta_time</span>
+                            </span>
+                    </code>
+                    <span class="param">delta_time</span>
+                    <span class="param-desc">The time in seconds since the last step event</span>
                 </article>
             </section>
             <section id="exit">
@@ -584,7 +613,9 @@
                     </code>
                     <span class="param">delta_time</span>
                     <span class="param-desc">A floating point number representing the amount of time
-                    since the last step in seconds.</span>
+                    since the last step in seconds. This value may also be accessed via the
+                    pyrite.delta_time() function, which saves having to thread the value through
+                    layers of game logic.</span>
                 </article>
                 <header>
                     <h2>Button constants</h2>

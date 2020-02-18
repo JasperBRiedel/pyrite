@@ -74,6 +74,10 @@ pub fn start<R: resources::Provider + 'static>(resource_provider: R) {
         let delta_time = last_frame_time.elapsed();
         last_frame_time = Instant::now();
 
+        // pass this frames delta time to the binding for the python delta_time() function to get
+        // its value. This value should only be set for the duration of the step event.
+        binding::set_delta_time(delta_time.as_secs_f64());
+
         // Dispatch time step event with delta time
         binding::raise_event(
             py,
@@ -82,6 +86,9 @@ pub fn start<R: resources::Provider + 'static>(resource_provider: R) {
                 delta_time: delta_time.as_secs_f64(),
             },
         );
+
+        // clear delta time before processing events that aren't logic steps
+        binding::set_delta_time(0.);
 
         // Allow the renderer to present a new frame if needed.
         engine!().render();
