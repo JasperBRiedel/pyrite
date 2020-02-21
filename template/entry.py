@@ -70,7 +70,6 @@ def __event__(event_type, event_data):
             )
 
     if event_type == "STEP":
-        print(f"data {game_data} event {event_data}")
         game_data["draw_trees_timer"] -= event_data["delta_time"]
 
         if game_data["draw_trees_timer"] <= 0.0:
