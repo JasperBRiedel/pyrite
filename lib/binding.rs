@@ -48,6 +48,7 @@ pub fn inject_engine(py: Python, engine: Engine) {
     // set engine instance to be called by python module functions.
     unsafe {
         ENGINE_INSTANCE = Some(engine);
+        GAME_DATA = Some(PyDict::new(Python::assume_gil_acquired()));
     }
 
     // create python engine module and bind functions
@@ -89,9 +90,8 @@ pub fn destroy_engine() {
 pub fn raise_event(py: Python, entry_module: &PyModule, event: &Event) {
     let event_type = event.type_str();
     let event_data = event_data_into_pyobject(&event);
-    let game_data = get_game_data();
 
-    let event_result = entry_module.call1("__event__", (event_type, event_data, game_data));
+    let event_result = entry_module.call1("__event__", (event_type, event_data));
 
     match event_result {
         Ok(_) => (),
@@ -153,19 +153,12 @@ pub fn get_configuration(entry_module: &PyModule) -> Option<Config> {
     })
 }
 
-fn get_game_data() -> &'static PyDict {
-    unsafe {
-        let py = Python::assume_gil_acquired();
-        GAME_DATA.get_or_insert_with(|| PyDict::new(py))
-    }
-}
-
 /// game_data()
 /// --
 /// Return a reference to the global game data dictionary
 #[pyfunction]
 fn game_data() -> &'static PyDict {
-    get_game_data()
+    unsafe { GAME_DATA.expect("Game data was accessed before initialised") }
 }
 
 /// exit()
