@@ -109,6 +109,30 @@ impl Engine {
         }
     }
 
+    // API function
+    pub fn clear_tiles(&mut self) {
+        let context = match &mut self.graphics_context {
+            Some(c) => c,
+            _ => return,
+        };
+
+        let (viewport_width, viewport_height) = context.get_viewport().get_dimensions();
+
+        for x in 0..viewport_width {
+            for y in 0..viewport_height {
+                context.set_tile(
+                    (x, y),
+                    "none",
+                    (0, 0, 0),
+                    (false, false),
+                    "none",
+                    (0, 0, 0),
+                    (false, false),
+                );
+            }
+        }
+    }
+
     // API Function
     pub fn set_tile(
         &mut self,

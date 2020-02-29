@@ -60,6 +60,7 @@ pub fn inject_engine(py: Python, engine: Engine) {
     bind!(engine_module, button_down);
     bind!(engine_module, set_viewport);
     bind!(engine_module, set_tile);
+    bind!(engine_module, clear);
     bind!(engine_module, resource_read);
     bind!(engine_module, resource_exists);
 
@@ -223,6 +224,13 @@ fn set_tile(
         back_color,
         back_flip,
     );
+}
+
+/// clear()
+/// clear all the tiles to none, and modifiers to unflipped and coloured black.
+#[pyfunction]
+fn clear() {
+    engine!().clear_tiles();
 }
 
 /// button_down(button) -> Boolean
