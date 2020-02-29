@@ -52,7 +52,9 @@ void main()
     );
 
     if (length(front_tile_color) > 0) {
-        FragColor = front_tile_color * front_modifier_color;
+        // fix for tiles that have transparent pixels, but still have the pixel data.
+        FragColor = vec4(front_tile_color.rgb * front_modifier_color.rgb * front_tile_color.a,
+                1.0);
     } else {
 
         vec4 back_tile_modifiers = texelFetch(back_scene_tiles_modifiers, tile_pos, 0);
@@ -69,7 +71,9 @@ void main()
             0
         );
 
-        FragColor = back_tile_color * back_modifier_color;
+        // fix for tiles that have transparent pixels, but still have the pixel data.
+        FragColor = vec4(back_tile_color.rgb * back_modifier_color.rgb * back_tile_color.a,
+                1.0);
     }
 }
 
