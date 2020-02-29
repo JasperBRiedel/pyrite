@@ -42,6 +42,7 @@
                 display: block;
                 font-size: 16pt;
                 color: #98971a;
+                margin-bottom: 1em;
 
             }
 
@@ -102,6 +103,7 @@
                 <a href="#mouse_position">mouse_position() - Get the location of the mouse</a>
                 <a href="#set_viewport">set_viewport() - Configure the dimensions and scale of the window</a>
                 <a href="#set_tile">set_tile() - Set tile draw properties</a>
+                <a href="#clear">clear() - Clear the scene</a>
                 <a href="#button_down">button_down() - Get the down state of a button input</a>
                 <a href="#resource_read">resource_read() - Loading packaged resources</a>
                 <a href="#resource_exists">resource_exists() - Check if packaged resources exist</a>
@@ -452,6 +454,22 @@
                     <span class="param">(bottom_flip_x, bottom_flip_y)</span>
                     <span class="param-desc">Tile sprite flip tuple, boolean value determines if the
                     tile should be flipped on that axis.</span>
+                </article>
+            </section>
+            <section id="clear">
+                <header>
+                    <h2>clear() - Clear the scene</h2>
+                    <summary>
+                        <p>It's generally better for performance to just update the tiles that have
+                        changed, but in some cases it might become necessary to just clear the scene
+                        before rendering the next frame.</p>
+                    </summary>
+                </header>
+                <article>
+                    <code>
+                        <span class="func">pyrite.clear</span>
+                        <span class="parens"></span>
+                    </code>
                 </article>
             </section>
             <section id="button_down">
