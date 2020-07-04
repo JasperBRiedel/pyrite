@@ -476,10 +476,14 @@
                 <header>
                     <h2>button_down() - Get the down state of a button input</h2>
                     <summary>
-                        <p>Returns true if the specified button is down.</p>
-                        <p>Supports checking if many buttons are down, using button constants
-                            separated by plus (+) symbols. Example "A+B+MOUSE_LEFT" would require
-                            the A and B keyboard keys, and the left mouse button to be down.</p>
+                        <p>Return true if the specified buttons are in the down state.</p>
+                        <p>The use of the plus (+) symbol allows you to specify multiple buttons that
+                            must be in the down state.</p>
+                        <p>The use of the pipe (|) symbol allows you to specify multiple buttons
+                            where at least one must be in the down state</p> 
+                        <p>The following example will return true if either "A" or "B" and
+                            "MOUSE_LEFT" or "MOUSE_RIGHT" are in the down state -
+                            "A|B+MOUSE_LEFT|MOUSE_RIGHT"</p> 
                     </summary>
                 </header>
                 <article>

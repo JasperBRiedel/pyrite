@@ -226,14 +226,17 @@ impl Platform {
     }
 
     pub fn button_down(&mut self, button: String) -> bool {
-        button
+        let mut required_button_groups = button
             .split('+')
-            .map(|key| key.to_uppercase())
-            .all(|button| {
+            .map(|required| required.split('|').map(|button| button.to_uppercase()));
+
+        required_button_groups.all(|mut button_group| {
+            button_group.any(|button| {
                 self.button_states
                     .get(&button)
                     .map_or(false, |state| *state == ButtonState::Down)
             })
+        })
     }
 
     pub fn poll_events(&mut self) -> Vec<engine::Event> {
