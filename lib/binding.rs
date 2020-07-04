@@ -63,6 +63,10 @@ pub fn inject_engine(py: Python, engine: Engine) {
     bind!(engine_module, clear);
     bind!(engine_module, resource_read);
     bind!(engine_module, resource_exists);
+    bind!(engine_module, play_audio);
+    bind!(engine_module, stop_audio);
+    bind!(engine_module, pause_audio);
+    bind!(engine_module, volume_audio);
 
     // Inject the engine module into the python importer
     py.import("sys")
@@ -255,6 +259,38 @@ fn resource_read(path: String) -> String {
 #[pyfunction]
 fn resource_exists(path: String) -> bool {
     engine!().resource_exists(path)
+}
+
+/// play_audio(path)
+/// --
+/// Start playing an audio track
+#[pyfunction]
+fn play_audio(path: String) {
+    engine!().play_audio(path)
+}
+
+/// stop_audio(path)
+/// --
+/// Stop playing an audio track
+#[pyfunction]
+fn stop_audio(path: String) {
+    engine!().stop_audio(path)
+}
+
+/// pause_audio(path)
+/// --
+/// Pause playing an audio track
+#[pyfunction]
+fn pause_audio(path: String) {
+    engine!().pause_audio(path)
+}
+
+/// volume_audio(path)
+/// --
+/// Adjust volume of track by multiplying samples by given factor
+#[pyfunction]
+fn volume_audio(path: String, value: f32) {
+    engine!().volume_audio(path, value)
 }
 
 fn event_data_into_pyobject(event: &Event) -> PyObject {

@@ -1,3 +1,4 @@
+use crate::audio;
 use crate::graphics;
 use crate::platform::Platform;
 use crate::pyrite_log;
@@ -42,6 +43,7 @@ pub struct Engine {
     resources: Box<dyn resources::Provider>,
     platform: Platform,
     graphics_context: Option<graphics::Context>,
+    audio: audio::AudioServer,
     running: bool,
 }
 
@@ -50,8 +52,9 @@ impl Engine {
         Self {
             config: None,
             resources,
-            graphics_context: None,
             platform: Platform::new(),
+            graphics_context: None,
+            audio: audio::AudioServer::new(),
             running: true,
         }
     }
@@ -179,6 +182,30 @@ impl Engine {
     // API Function
     pub fn resource_exists(&self, path: String) -> bool {
         self.resources.exists(&path)
+    }
+
+    // API Function
+    pub fn play_audio(&mut self, path: String) {
+        self.audio.play(&path, &self.resources);
+    }
+
+    // API Function
+    pub fn stop_audio(&mut self, path: String) {
+        if path == "*" {
+            self.audio.stop_all();
+        } else {
+            self.audio.stop(&path);
+        }
+    }
+
+    // API Function
+    pub fn pause_audio(&mut self, path: String) {
+        self.audio.pause(&path);
+    }
+
+    // API Function
+    pub fn volume_audio(&mut self, path: String, value: f32) {
+        self.audio.volume(&path, value);
     }
 
     pub fn clean(&mut self) {

@@ -1,6 +1,6 @@
 [package]
 name = "pyrite"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["JasperBRiedel <jasperandbuddy@gmail.com>"]
 publish = false
 edition = "2018"
@@ -25,3 +25,4 @@ pyo3 = "0.8.5"
 gl = "0.14.0"
 image = "0.22.3"
 glutin = "0.22.0"
+rodio = "0.11.0"
