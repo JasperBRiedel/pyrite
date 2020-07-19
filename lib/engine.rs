@@ -24,6 +24,7 @@ pub enum Event {
     Scroll { x: i32, y: i32 },
     Text { text: String },
     Step { delta_time: f64 },
+    Exit,
 }
 
 impl Event {
@@ -34,6 +35,7 @@ impl Event {
             Self::Scroll { .. } => "SCROLL",
             Self::Text { .. } => "TEXT",
             Self::Step { .. } => "STEP",
+            Self::Exit => "EXIT",
         }
     }
 }

@@ -322,6 +322,7 @@ fn event_data_into_pyobject(event: &Event) -> PyObject {
                 .set_item("delta_time", delta_time)
                 .expect("failed to set event item");
         }
+        Event::Exit => (),
     };
 
     return py_event.to_object(py);

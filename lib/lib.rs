@@ -101,6 +101,9 @@ pub fn start<R: resources::Provider + 'static>(resource_provider: R) {
         }
     }
 
+    // instruct game logic to exit
+    binding::raise_event(py, entry_module, &engine::Event::Exit);
+
     pyrite_log!("Cleaning up pyrite engine resources");
     binding::destroy_engine();
 }
