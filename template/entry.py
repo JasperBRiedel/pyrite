@@ -10,8 +10,8 @@ def __config__():
         "application_version": "0.1.0",
 
         # Determines the initial viewport size and scale
-        "viewport_scale": 2,
-        "viewport_width": 32,
+        "viewport_scale": 1,
+        "viewport_width": 59,
         "viewport_height": 32,
 
         # tileset path
@@ -42,34 +42,9 @@ def __event__(event_type, event_data):
     if event_type == "LOAD":
         game_data["draw_bg_timer"] = 0.0;
 
-        game_data["viewport_width"] = 32
-        game_data["viewport_height"] = 32
-        game_data["viewport_scale"] = 2
-        pass
-
     if event_type == "BUTTON":
-        if event_data["button"] == "ESCAPE":
+        if event_data["button"] == "ESCAPE" and event_data["transition"] == "PRESSED":
             pyrite.exit()
-
-        if event_data["transition"] == "PRESSED":
-            if event_data["button"] == "Q":
-                game_data["viewport_width"] += 1
-            if event_data["button"] == "W":
-                game_data["viewport_width"] -= 1
-            if event_data["button"] == "A":
-                game_data["viewport_height"] += 1
-            if event_data["button"] == "S":
-                game_data["viewport_height"] -= 1
-            if event_data["button"] == "Z":
-                game_data["viewport_scale"] += 1
-            if event_data["button"] == "X":
-                game_data["viewport_scale"] -= 1
-
-            pyrite.set_viewport(
-                game_data["viewport_width"],
-                game_data["viewport_height"],
-                game_data["viewport_scale"]
-            )
 
     if event_type == "STEP":
         # colourful background
@@ -79,8 +54,11 @@ def __event__(event_type, event_data):
             draw_random_bg()
 
         # instructions
-        draw_rect(4, 4, 13, 3, "fill", (0, 0, 0))
-        draw_string(5, 5, "Hello, World!")
+        draw_rect(1, 1, 57, 6, "fill", (0, 0, 0))
+        draw_string(2, 2, "Welcome to Pyrite!")
+        draw_string(2, 3, "1. Open the project directory in your favourite editor")
+        draw_string(2, 4, "2. Read the API reference at https://riedel.tech/pyrite")
+        draw_string(2, 5, "3. Build an awesome game?!")
 
 
 
@@ -94,7 +72,7 @@ def draw_rect(x, y, width, height, tile, color):
             pyrite.set_tile((cx + x, cy + y), tile, color, (False, False)) 
 
 def draw_random_bg():
-    for x in range(32):
+    for x in range(59):
         for y in range(32):
             tile = random.choice(list("!@#$%^&*"))
             color = random.choice([(1,145,135), (146,196,86), (199,228,128), (221,193,85)])
